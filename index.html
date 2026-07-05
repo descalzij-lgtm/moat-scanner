@@ -1,0 +1,1560 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Moat Scanner — Análisis fundamental visual con IA · Descalzi Finanzas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<style>
+:root{
+  --bg:#0a0e1a; --bg2:#0f1524; --card:#131a2c; --card2:#1a2338;
+  --line:#243049; --line2:#2e3c5a;
+  --text:#e8edf7; --muted:#8b97b3; --muted2:#5f6b8a;
+  --blue:#3d7dff; --blue2:#5b9dff; --green:#2ecc8f; --green2:#39e6a0;
+  --gold:#e6b74a; --gold2:#f5cd63; --red:# f2545b; --red:#f2545b; --amber:#f5a623;
+  --shadow:0 10px 40px rgba(0,0,0,.45);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  background:radial-gradient(1200px 700px at 80% -10%,#16203a 0%,var(--bg) 55%) fixed;
+  color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,Roboto,Helvetica,Arial,sans-serif;
+  line-height:1.5;min-height:100vh;padding-bottom:60px;
+}
+.wrap{max-width:1240px;margin:0 auto;padding:0 20px}
+a{color:var(--blue2)}
+/* Header */
+.topbar{padding:26px 0 10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:14px}
+.brand{display:flex;align-items:center;gap:14px}
+.logo{width:52px;height:52px;border-radius:14px;background:linear-gradient(135deg,var(--blue),var(--green));display:flex;align-items:center;justify-content:center;font-weight:800;font-size:26px;color:#04101f;box-shadow:0 6px 20px rgba(61,125,255,.4)}
+.brand h1{font-size:22px;letter-spacing:.3px;font-weight:800}
+.brand p{color:var(--muted);font-size:13px;margin-top:2px}
+.brand small{color:var(--gold)}
+/* Tabs */
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 8px}
+.tab{background:var(--card);border:1px solid var(--line);color:var(--muted);padding:10px 18px;border-radius:11px;cursor:pointer;font-weight:600;font-size:14px;transition:.15s}
+.tab:hover{border-color:var(--line2);color:var(--text)}
+.tab.active{background:linear-gradient(135deg,var(--blue),#2a5edb);color:#fff;border-color:transparent;box-shadow:0 6px 18px rgba(61,125,255,.35)}
+/* Input bar */
+.panel{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:var(--shadow)}
+.inputbar{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted2);font-weight:700}
+input.inp,select.inp{background:var(--bg);border:1px solid var(--line2);color:var(--text);padding:12px 14px;border-radius:11px;font-size:15px;outline:none;transition:.15s;font-family:inherit}
+input.inp:focus{border-color:var(--blue)}
+#tickerInput{text-transform:uppercase;font-weight:800;letter-spacing:2px;width:150px;font-size:18px}
+#apiKeyInput{width:230px}
+.btn{border:none;cursor:pointer;font-weight:700;font-size:14px;padding:12px 20px;border-radius:11px;transition:.15s;font-family:inherit;display:inline-flex;align-items:center;gap:8px}
+.btn-primary{background:linear-gradient(135deg,var(--blue),#2a5edb);color:#fff;box-shadow:0 6px 18px rgba(61,125,255,.35)}
+.btn-primary:hover{filter:brightness(1.08)}
+.btn-ghost{background:var(--card2);color:var(--text);border:1px solid var(--line2)}
+.btn-ghost:hover{border-color:var(--blue)}
+.btn-gold{background:linear-gradient(135deg,var(--gold),#d29e2e);color:#221a04}
+.btn-green{background:linear-gradient(135deg,var(--green),#1fa873);color:#04241a}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.hint{color:var(--muted2);font-size:12px;margin-top:12px}
+/* Status / error */
+.status{margin-top:16px;padding:14px 16px;border-radius:12px;font-size:14px;display:none}
+.status.show{display:block}
+.status.err{background:rgba(242,84,91,.12);border:1px solid rgba(242,84,91,.4);color:#ffb3b6}
+.status.info{background:rgba(61,125,255,.1);border:1px solid rgba(61,125,255,.35);color:var(--blue2)}
+.status.warn{background:rgba(245,166,35,.1);border:1px solid rgba(245,166,35,.35);color:#ffcf8a}
+/* Grid + cards */
+.section{margin-top:26px}
+.section-title{display:flex;align-items:center;gap:10px;font-size:17px;font-weight:800;margin-bottom:14px;letter-spacing:.3px}
+.section-title .bar{width:5px;height:20px;border-radius:3px;background:linear-gradient(var(--gold),var(--blue))}
+.grid{display:grid;gap:16px}
+.card{background:linear-gradient(180deg,var(--card),var(--bg2));border:1px solid var(--line);border-radius:16px;padding:18px}
+.card h3{font-size:13px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:10px;font-weight:700}
+/* hero */
+.hero{display:grid;grid-template-columns:1.4fr .9fr;gap:18px}
+@media(max-width:880px){.hero{grid-template-columns:1fr}.inputbar{flex-direction:column;align-items:stretch}#tickerInput,#apiKeyInput{width:100%}}
+.hero-main{background:linear-gradient(135deg,#141d33,#0d1322);border:1px solid var(--line);border-radius:18px;padding:24px;position:relative;overflow:hidden}
+.hero-main::after{content:"";position:absolute;top:-60px;right:-60px;width:220px;height:220px;background:radial-gradient(circle,rgba(61,125,255,.22),transparent 70%)}
+.co-name{font-size:26px;font-weight:800;line-height:1.15}
+.co-meta{color:var(--muted);font-size:13px;margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.chip{background:var(--card2);border:1px solid var(--line2);border-radius:20px;padding:3px 12px;font-size:12px;font-weight:600;color:var(--text)}
+.chip.gold{color:var(--gold2);border-color:rgba(230,183,74,.4)}
+.price-row{display:flex;gap:24px;margin-top:18px;flex-wrap:wrap}
+.price-row .pv{font-size:13px;color:var(--muted)}
+.price-row .pv b{display:block;font-size:20px;color:var(--text);font-weight:800;margin-top:2px}
+/* score circle */
+.score-box{display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;gap:6px}
+.score-ring{position:relative;width:170px;height:170px}
+.score-ring .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.score-ring .num b{font-size:46px;font-weight:800;line-height:1}
+.score-ring .num span{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+.classif{font-weight:700;font-size:15px;text-align:center;padding:8px 14px;border-radius:12px;margin-top:4px}
+/* score bars */
+.sbars{display:flex;flex-direction:column;gap:11px}
+.sbar-row{display:grid;grid-template-columns:120px 1fr 42px;align-items:center;gap:10px;font-size:13px}
+.sbar-track{height:9px;background:var(--bg);border-radius:6px;overflow:hidden}
+.sbar-fill{height:100%;border-radius:6px;transition:width .6s}
+.sbar-val{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+/* KPI grid */
+.kpis{grid-template-columns:repeat(auto-fill,minmax(180px,1fr))}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.kpi .k{font-size:11px;text-transform:uppercase;letter-spacing:.8px;color:var(--muted2);font-weight:700}
+.kpi .v{font-size:22px;font-weight:800;margin-top:6px;font-variant-numeric:tabular-nums}
+.kpi .i{font-size:12px;margin-top:4px;color:var(--muted)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.d-green{background:var(--green)}.d-amber{background:var(--amber)}.d-red{background:var(--red)}.d-blue{background:var(--blue2)}
+/* semaforo */
+.sema{grid-template-columns:repeat(auto-fill,minmax(300px,1fr))}
+.sema-item{display:flex;gap:12px;align-items:flex-start;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:13px}
+.light{width:14px;height:14px;border-radius:50%;margin-top:4px;flex-shrink:0;box-shadow:0 0 10px currentColor}
+.l-green{background:var(--green);color:var(--green)}.l-amber{background:var(--amber);color:var(--amber)}.l-red{background:var(--red);color:var(--red)}
+.sema-item .q{font-weight:700;font-size:14px}
+.sema-item .c{font-size:12.5px;color:var(--muted);margin-top:2px}
+/* moat */
+.moat-badge{display:inline-block;padding:6px 16px;border-radius:20px;font-weight:800;font-size:15px}
+.moat-list{grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.moat-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;border-left:4px solid var(--line2)}
+.moat-card.on{border-left-color:var(--green)}
+.moat-card.mid{border-left-color:var(--gold)}
+.moat-card.off{border-left-color:var(--muted2)}
+.moat-card .t{font-weight:700;font-size:14px;display:flex;justify-content:space-between;align-items:center}
+.moat-card .t small{font-size:11px;padding:2px 8px;border-radius:10px;background:var(--card2)}
+.moat-card .e{font-size:12.5px;color:var(--muted);margin-top:6px}
+/* tables */
+table.tbl{width:100%;border-collapse:collapse;font-size:13.5px}
+table.tbl th{background:var(--card2);text-align:left;padding:10px 12px;font-size:11px;text-transform:uppercase;letter-spacing:.6px;color:var(--muted);border-bottom:1px solid var(--line2)}
+table.tbl td{padding:10px 12px;border-bottom:1px solid var(--line)}
+table.tbl tr:last-child td{border-bottom:none}
+table.tbl td.num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.sev{font-weight:700;padding:2px 10px;border-radius:10px;font-size:12px}
+.sev-baja{background:rgba(46,204,143,.15);color:var(--green2)}
+.sev-media{background:rgba(245,166,35,.15);color:var(--amber)}
+.sev-alta{background:rgba(242,84,91,.15);color:#ff8085}
+.sev-critica{background:var(--red);color:#fff}
+.sev-ok{background:rgba(46,204,143,.15);color:var(--green2)}
+/* red flags cards */
+.rf{grid-template-columns:repeat(auto-fill,minmax(240px,1fr))}
+.rf-card{border-radius:12px;padding:13px;border:1px solid var(--line);background:var(--card)}
+.rf-card.ok{border-left:4px solid var(--green)}
+.rf-card.warn{border-left:4px solid var(--amber)}
+.rf-card.alert{border-left:4px solid var(--red)}
+.rf-card .t{font-weight:700;font-size:13.5px;display:flex;justify-content:space-between;gap:8px}
+.rf-card .d{font-size:12px;color:var(--muted);margin-top:5px}
+/* committee */
+.comm{grid-template-columns:repeat(auto-fill,minmax(320px,1fr))}
+.comm-card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px}
+.comm-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.avatar{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px;color:#04101f}
+.comm-card .role{font-size:11px;color:var(--muted2);text-transform:uppercase;letter-spacing:.5px}
+.comm-card .name{font-weight:800;font-size:15px}
+.verdict{font-weight:700;font-size:13.5px;padding:6px 10px;border-radius:10px;background:var(--card2);margin-bottom:8px}
+.pro{font-size:12.5px;margin-top:5px}.pro b{color:var(--green2)}
+.con{font-size:12.5px;margin-top:3px}.con b{color:#ff8085}
+.qk{font-size:12.5px;margin-top:6px;color:var(--gold2);font-style:italic}
+/* thesis */
+.thesis-tabs{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.tt{padding:7px 14px;border-radius:9px;background:var(--card2);border:1px solid var(--line2);cursor:pointer;font-size:13px;font-weight:600;color:var(--muted)}
+.tt.active{background:var(--blue);color:#fff;border-color:transparent}
+.thesis-body{white-space:pre-wrap;font-size:14.5px;line-height:1.7;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:18px;min-height:120px}
+/* matrix */
+.matrix-wrap{position:relative}
+/* disclaimer */
+.disclaimer{margin-top:30px;padding:16px;border:1px dashed var(--line2);border-radius:12px;color:var(--muted);font-size:12.5px;background:rgba(255,255,255,.02)}
+/* export bar */
+.exportbar{display:flex;gap:10px;flex-wrap:wrap;margin-top:8px}
+/* modal */
+.modal{display:none;position:fixed;inset:0;background:rgba(4,8,18,.8);z-index:100;align-items:flex-start;justify-content:center;padding:40px 16px;overflow:auto}
+.modal.show{display:flex}
+.modal-box{background:var(--bg2);border:1px solid var(--line2);border-radius:18px;padding:24px;max-width:820px;width:100%;box-shadow:var(--shadow)}
+.modal-box h2{font-size:19px;margin-bottom:4px}
+.mform{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:16px}
+.mform .field{gap:4px}
+.mform input{width:100%}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:18px;flex-wrap:wrap}
+/* battle */
+.battle-in{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap}
+.vs{font-weight:800;color:var(--gold);font-size:20px;padding:0 6px 10px}
+.battle-grid{display:grid;grid-template-columns:1fr auto 1fr;gap:8px 14px;align-items:center;margin-top:6px}
+.battle-cat{text-align:center;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted2);font-weight:700}
+.battle-val{font-weight:700;font-variant-numeric:tabular-nums;padding:9px 12px;border-radius:10px;background:var(--card);border:1px solid var(--line);text-align:center}
+.battle-val.win{background:rgba(46,204,143,.14);border-color:rgba(46,204,143,.5);color:var(--green2)}
+.win-tag{font-size:10px;display:block;color:var(--green2);font-weight:800;margin-top:2px}
+.battle-head{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px;border-radius:12px;background:var(--card2)}
+.battle-head .tk{font-size:20px;font-weight:800;letter-spacing:1px}
+/* placa */
+#placa{width:600px;background:linear-gradient(150deg,#0c1428 0%,#111c38 55%,#0a1120 100%);border-radius:24px;padding:36px;color:#fff;position:relative;overflow:hidden;border:1px solid #223154}
+#placa::before{content:"";position:absolute;top:-80px;right:-80px;width:280px;height:280px;background:radial-gradient(circle,rgba(230,183,74,.18),transparent 70%)}
+#placa::after{content:"";position:absolute;bottom:-100px;left:-60px;width:280px;height:280px;background:radial-gradient(circle,rgba(61,125,255,.16),transparent 70%)}
+.placa-brand{display:flex;align-items:center;gap:12px;position:relative}
+.placa-logo{width:44px;height:44px;border-radius:12px;background:linear-gradient(135deg,var(--blue),var(--green));display:flex;align-items:center;justify-content:center;font-weight:800;color:#04101f;font-size:22px}
+.placa-score{display:flex;align-items:center;gap:20px;margin:22px 0 18px;position:relative}
+.placa-num{font-size:74px;font-weight:800;line-height:1;background:linear-gradient(135deg,var(--gold2),var(--green2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+.placa-row{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:15px;position:relative}
+.placa-row span:first-child{color:#8b97b3}
+.placa-row b{font-weight:700}
+.hidden{display:none!important}
+.center{text-align:center}
+.spinner{width:18px;height:18px;border:2.5px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;display:inline-block;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.watch-empty{text-align:center;color:var(--muted);padding:40px}
+.cbx{width:16px;height:16px;accent-color:var(--blue)}
+.footer{text-align:center;color:var(--muted2);font-size:12px;margin-top:40px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <div class="logo">M</div>
+      <div>
+        <h1>Moat Scanner</h1>
+        <p>Análisis fundamental visual de empresas con IA · <small>Descalzi Finanzas</small></p>
+      </div>
+    </div>
+    <div class="tabs" id="mainTabs">
+      <div class="tab active" data-view="analysis">Análisis</div>
+      <div class="tab" data-view="battle">Moat Battle</div>
+      <div class="tab" data-view="watchlist">Watchlist</div>
+    </div>
+  </div>
+
+  <!-- ANALYSIS VIEW -->
+  <div id="view-analysis">
+    <div class="panel">
+      <div class="inputbar">
+        <div class="field">
+          <label>Ticker</label>
+          <input id="tickerInput" class="inp" placeholder="AAPL" maxlength="8" value="AAPL">
+        </div>
+        <input id="apiKeyInput" type="hidden" value="">
+        <button class="btn btn-primary" id="btnAnalyze">🔍 Analizar</button>
+        <button class="btn btn-green" id="btnDemo">▶ Modo demo</button>
+        <button class="btn btn-ghost" id="btnManual">✎ Carga manual</button>
+        <button class="btn btn-ghost" id="btnClear">✕ Limpiar</button>
+      </div>
+      <div class="hint">Ingresá un ticker y tocá <b>Analizar</b>: los datos se obtienen de forma segura desde el servidor (la API key queda oculta en el backend). También podés usar <b>Modo demo</b> o <b>Carga manual</b>.</div>
+      <div class="status" id="status"></div>
+    </div>
+    <div id="dashboard" class="hidden"></div>
+  </div>
+
+  <!-- BATTLE VIEW -->
+  <div id="view-battle" class="hidden">
+    <div class="panel">
+      <div class="section-title" style="margin-bottom:14px"><span class="bar"></span>Moat Battle — comparar dos empresas</div>
+      <div class="battle-in">
+        <div class="field"><label>Empresa A</label><input id="battleA" class="inp" style="text-transform:uppercase;font-weight:800;letter-spacing:2px;width:130px" placeholder="NVDA" value="NVDA"></div>
+        <div class="vs">VS</div>
+        <div class="field"><label>Empresa B</label><input id="battleB" class="inp" style="text-transform:uppercase;font-weight:800;letter-spacing:2px;width:130px" placeholder="AMD" value="AMD"></div>
+        <button class="btn btn-primary" id="btnBattle">⚔ Comparar</button>
+        <button class="btn btn-green" id="btnBattleDemo">▶ Demo (NOVA vs LEGACY)</button>
+      </div>
+      <div class="hint">Ingresá dos tickers. Se calculan ambos scores y se muestra el ganador por categoría. Nunca decimos "comprar" ni "vender".</div>
+      <div class="status" id="battleStatus"></div>
+    </div>
+    <div id="battleResult" class="hidden"></div>
+  </div>
+
+  <!-- WATCHLIST VIEW -->
+  <div id="view-watchlist" class="hidden">
+    <div class="panel">
+      <div class="section-title" style="margin-bottom:6px"><span class="bar"></span>Watchlist de empresas analizadas</div>
+      <div class="hint">Se guarda en tu navegador (localStorage). Podés exportarla a Excel o comparar dos seleccionadas en Moat Battle.</div>
+      <div class="exportbar" style="margin-top:14px">
+        <button class="btn btn-green" id="btnWatchExcel">📊 Exportar watchlist a Excel</button>
+        <button class="btn btn-gold" id="btnWatchCompare">⚔ Comparar seleccionadas</button>
+        <button class="btn btn-ghost" id="btnWatchClear">🗑 Vaciar watchlist</button>
+      </div>
+      <div id="watchTable" style="margin-top:18px"></div>
+    </div>
+  </div>
+
+  <div class="footer">Descalzi Finanzas · Moat Scanner · Herramienta educativa de análisis fundamental.</div>
+</div>
+
+<!-- MANUAL ENTRY MODAL -->
+<div class="modal" id="manualModal">
+  <div class="modal-box">
+    <h2>Carga / edición manual de datos</h2>
+    <p style="color:var(--muted);font-size:13px">Completá o editá los campos. Al guardar se recalculan todos los scores y módulos. Dejá vacío lo que no tengas: se marcará como N/D.</p>
+    <div class="mform" id="manualForm"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btnManualCancel">Cancelar</button>
+      <button class="btn btn-primary" id="btnManualSave">Guardar y recalcular</button>
+    </div>
+  </div>
+</div>
+
+<!-- PLACA MODAL -->
+<div class="modal" id="placaModal">
+  <div class="modal-box" style="max-width:680px">
+    <h2>Placa para LinkedIn / Instagram / X</h2>
+    <p style="color:var(--muted);font-size:13px">Descargá la imagen y publicala. Diseño premium apto para redes.</p>
+    <div style="display:flex;justify-content:center;margin:18px 0;overflow:auto">
+      <div id="placa"></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" id="btnPlacaClose">Cerrar</button>
+      <button class="btn btn-gold" id="btnPlacaDownload">⬇ Descargar PNG</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ============================================================
+   MOAT SCANNER · Descalzi Finanzas
+   Núcleo: formato, datos, scoring
+   ============================================================ */
+
+/* ---------- REGLA GLOBAL DE FORMATO NUMÉRICO ---------- */
+function formatNumber(value){
+  if(value===null||value===undefined||value===""||isNaN(value)) return "N/D";
+  return Number(value).toLocaleString("es-AR",{minimumFractionDigits:0,maximumFractionDigits:0});
+}
+function formatCurrency(value,currency="USD"){
+  if(value===null||value===undefined||value===""||isNaN(value)) return "N/D";
+  return `${currency} ${Number(value).toLocaleString("es-AR",{minimumFractionDigits:0,maximumFractionDigits:0})}`;
+}
+// value viene como fracción (0.25) => 25%. Si ya viene entero (25) usar isPct=false para no re-multiplicar.
+function formatPercent(value,alreadyPct=false){
+  if(value===null||value===undefined||value===""||isNaN(value)) return "N/D";
+  const v = alreadyPct ? Number(value) : Number(value)*100;
+  return `${v.toLocaleString("es-AR",{minimumFractionDigits:0,maximumFractionDigits:0})}%`;
+}
+// abrevia grandes montos manteniendo punto de miles (para KPIs compactos)
+function fmtBig(value,currency="USD"){
+  if(value===null||value===undefined||value===""||isNaN(value)) return "N/D";
+  const n=Number(value), a=Math.abs(n);
+  if(a>=1e12) return `${currency} ${(n/1e12).toLocaleString("es-AR",{maximumFractionDigits:1})} B`; // billón es
+  if(a>=1e9)  return `${currency} ${(n/1e9).toLocaleString("es-AR",{maximumFractionDigits:1})} MM`;
+  if(a>=1e6)  return `${currency} ${(n/1e6).toLocaleString("es-AR",{maximumFractionDigits:1})} M`;
+  return formatCurrency(n,currency);
+}
+
+/* ---------- ESTADO GLOBAL ---------- */
+let CURRENT=null;        // objeto normalizado + scores de la empresa analizada
+let radarChart=null, matrixChart=null, battleRadar=null;
+const FMP_BASE="https://financialmodelingprep.com/stable";
+const DISCLAIMER="Este análisis tiene fines educativos e informativos. No constituye recomendación de inversión, asesoramiento financiero personalizado ni oferta de compra o venta de valores negociables. Toda decisión de inversión debe ser evaluada por el usuario o por un asesor registrado.";
+
+/* ---------- DATOS DEMO (empresas ficticias) ---------- */
+function demoCompany(){
+  return normalizeManual({
+    source:"Demo (empresa ficticia)", ticker:"NOVA", companyName:"Nova Compounders Inc.",
+    exchange:"NASDAQ", country:"US", sector:"Tecnología", industry:"Software & Servicios",
+    description:"Plataforma SaaS de infraestructura de datos con ingresos recurrentes, alta retención neta y fuerte poder de fijación de precios. Empresa ficticia con fines de demostración.",
+    currency:"USD", price:284, marketCap:142000000000, enterpriseValue:138000000000,
+    revenue:9800000000, revenueGrowth:0.24, grossMargin:0.78, operatingMargin:0.31, netMargin:0.26,
+    ebitda:3500000000, netIncome:2548000000, eps:5.1, epsGrowth:0.27,
+    cashAndEquivalents:8200000000, totalDebt:4200000000, netDebt:-4000000000, totalEquity:15600000000,
+    operatingCashFlow:3600000000, capex:-420000000, freeCashFlow:3180000000,
+    roe:0.28, roa:0.17, roic:0.24, debtToEquity:0.27, netDebtToEbitda:-1.14,
+    peRatio:34, evToEbitda:24, evToSales:14, priceToBook:9.1, priceToSales:14.5,
+    fcfYield:0.022, dividendYield:0, payoutRatio:0, beta:1.15,
+    high52:305, low52:168, change1y:0.41, avgVolume:5200000, revenueCAGR5:0.29
+  });
+}
+function demoLegacy(){
+  return normalizeManual({
+    source:"Demo (empresa ficticia)", ticker:"LEGACY", companyName:"Legacy Industrials Corp.",
+    exchange:"NYSE", country:"US", sector:"Industrial", industry:"Maquinaria pesada",
+    description:"Fabricante industrial cíclico, expuesto a commodities y tasas, con crecimiento bajo y apalancamiento elevado. Empresa ficticia con fines de demostración.",
+    currency:"USD", price:47, marketCap:9800000000, enterpriseValue:16200000000,
+    revenue:12400000000, revenueGrowth:0.02, grossMargin:0.21, operatingMargin:0.08, netMargin:0.045,
+    ebitda:1350000000, netIncome:558000000, eps:2.7, epsGrowth:-0.05,
+    cashAndEquivalents:600000000, totalDebt:7000000000, netDebt:6400000000, totalEquity:4100000000,
+    operatingCashFlow:900000000, capex:-750000000, freeCashFlow:150000000,
+    roe:0.13, roa:0.04, roic:0.07, debtToEquity:1.71, netDebtToEbitda:4.74,
+    peRatio:17, evToEbitda:12, evToSales:1.3, priceToBook:2.4, priceToSales:0.79,
+    fcfYield:0.015, dividendYield:0.031, payoutRatio:0.52, beta:1.45,
+    high52:58, low52:39, change1y:-0.06, avgVolume:3100000, revenueCAGR5:0.03
+  });
+}
+
+/* ---------- OBTENCIÓN DE DATOS VÍA BACKEND SEGURO ----------
+   En la versión producto el navegador NUNCA ve la API key.
+   Llama a /api/company?ticker=... y recibe el objeto normalizado. */
+async function fetchFMP(ticker,key){
+  if(location.protocol==="file:") throw new Error("NO_BACKEND");
+  let r;
+  try{ r=await fetch(`/api/company?ticker=${encodeURIComponent(ticker)}`,{headers:{Accept:"application/json"}}); }
+  catch(e){ throw new Error("NO_BACKEND"); }
+  const ct=r.headers.get("content-type")||"";
+  if(!ct.includes("application/json")){
+    if(r.status===404) throw new Error("NO_BACKEND");
+    throw new Error("Respuesta inválida del servidor ("+r.status+").");
+  }
+  const j=await r.json();
+  if(!r.ok || (j&&j.error)) throw new Error((j&&j.error)||("Error "+r.status));
+  return j; // ya viene normalizado y finalizado por el backend
+}
+
+function num(x){ return (x===null||x===undefined||x===""||isNaN(x))?null:Number(x); }
+function pick(arr,i=0){ return (arr && arr[i])?arr[i]:{}; }
+
+function normalizeFMP(ticker,d,errors){
+  const p=pick(d.profile), inc=pick(d.income), bal=pick(d.balance), cf=pick(d.cash),
+        rt=pick(d.ratios), km=pick(d.metrics), gr=pick(d.growth);
+  const incSeries=d.income||[];
+  // CAGR de ingresos con la serie disponible (más antiguo -> más nuevo)
+  let cagr=null;
+  if(incSeries.length>=2){
+    const newest=num(incSeries[0].revenue), oldest=num(incSeries[incSeries.length-1].revenue), yrs=incSeries.length-1;
+    if(newest && oldest && oldest>0 && yrs>0) cagr=Math.pow(newest/oldest,1/yrs)-1;
+  }
+  const o={
+    source:"Financial Modeling Prep", fetchedAt:new Date().toISOString(),
+    ticker:(p.symbol||ticker).toUpperCase(), companyName:p.companyName||ticker,
+    exchange:p.exchange||p.exchangeShortName||null, country:p.country||null,
+    sector:p.sector||null, industry:p.industry||null, description:p.description||null,
+    currency:p.currency||"USD", price:num(p.price), marketCap:num(p.marketCap||p.mktCap),
+    enterpriseValue:num(km.enterpriseValue),
+    revenue:num(inc.revenue), revenueGrowth:num(gr.revenueGrowth), revenueCAGR5:cagr,
+    grossMargin:num(rt.grossProfitMargin), operatingMargin:num(rt.operatingProfitMargin), netMargin:num(rt.netProfitMargin),
+    ebitda:num(inc.ebitda), ebit:num(inc.operatingIncome), netIncome:num(inc.netIncome),
+    eps:num(inc.eps||inc.epsdiluted), epsGrowth:num(gr.epsgrowth),
+    cashAndEquivalents:num(bal.cashAndCashEquivalents), totalDebt:num(bal.totalDebt),
+    netDebt:num(bal.netDebt), totalEquity:num(bal.totalStockholdersEquity),
+    totalAssets:num(bal.totalAssets), totalLiabilities:num(bal.totalLiabilities),
+    operatingCashFlow:num(cf.operatingCashFlow||cf.netCashProvidedByOperatingActivities),
+    capex:num(cf.capitalExpenditure), freeCashFlow:num(cf.freeCashFlow),
+    roe:num(rt.returnOnEquity||km.roe), roa:num(rt.returnOnAssets), roic:num(km.roic||rt.returnOnCapitalEmployed),
+    debtToEquity:num(rt.debtEquityRatio||rt.debtToEquity), netDebtToEbitda:num(rt.netDebtToEBITDA),
+    peRatio:num(rt.priceEarningsRatio||km.peRatio), evToEbitda:num(km.evToEBITDA||rt.enterpriseValueMultiple),
+    evToSales:num(km.evToSales), priceToBook:num(rt.priceToBookRatio), priceToSales:num(rt.priceToSalesRatio),
+    fcfYield:num(km.freeCashFlowYield), dividendYield:num(rt.dividendYield), payoutRatio:num(rt.payoutRatio),
+    beta:num(p.beta), high52:num(p.range?String(p.range).split("-").pop().trim():null),
+    low52:num(p.range?String(p.range).split("-")[0].trim():null),
+    change1y:null, avgVolume:num(p.averageVolume||p.volAvg),
+    endpointErrors:errors
+  };
+  return finalizeNormalization(o);
+}
+
+function normalizeManual(raw){
+  const o=Object.assign({fetchedAt:new Date().toISOString(),endpointErrors:[]},raw);
+  ["price","marketCap","enterpriseValue","revenue","revenueGrowth","grossMargin","operatingMargin",
+   "netMargin","ebitda","ebit","netIncome","eps","epsGrowth","cashAndEquivalents","totalDebt","netDebt",
+   "totalEquity","totalAssets","totalLiabilities","operatingCashFlow","capex","freeCashFlow","roe","roa",
+   "roic","debtToEquity","netDebtToEbitda","peRatio","evToEbitda","evToSales","priceToBook","priceToSales",
+   "fcfYield","dividendYield","payoutRatio","beta","high52","low52","change1y","avgVolume","revenueCAGR5"]
+   .forEach(k=>{ o[k]=num(o[k]); });
+  return finalizeNormalization(o);
+}
+
+function finalizeNormalization(o){
+  // FCF fallback
+  if(o.freeCashFlow===null && o.operatingCashFlow!==null && o.capex!==null) o.freeCashFlow=o.operatingCashFlow+o.capex;
+  if(o.netDebt===null && o.totalDebt!==null && o.cashAndEquivalents!==null) o.netDebt=o.totalDebt-o.cashAndEquivalents;
+  o.fcfMargin=(o.freeCashFlow!==null && o.revenue)?o.freeCashFlow/o.revenue:null;
+  o.cashConversion=(o.freeCashFlow!==null && o.netIncome)?o.freeCashFlow/o.netIncome:null;
+  // lista de datos faltantes clave
+  const keyFields={revenue:"Ingresos",netIncome:"Utilidad neta",freeCashFlow:"Free cash flow",roic:"ROIC",
+    netDebtToEbitda:"Deuda neta/EBITDA",peRatio:"P/E",grossMargin:"Margen bruto",revenueGrowth:"Crecimiento de ingresos"};
+  o.missingData=Object.keys(keyFields).filter(k=>o[k]===null).map(k=>keyFields[k]);
+  return o;
+}
+
+/* ---------- MOTOR DE SCORING ---------- */
+function clamp(v){ return Math.max(0,Math.min(100,Math.round(v))); }
+function asPct(v){ return v===null?null:(Math.abs(v)<=1.5?v*100:v); } // fracción o entero -> entero %
+
+function scoreRentabilidad(o){
+  let s=45; const c=[];
+  const roic=asPct(o.roic), roe=asPct(o.roe), gm=asPct(o.grossMargin), nm=asPct(o.netMargin);
+  if(roic!==null){ if(roic>=20){s+=22;c.push("ROIC excepcional")} else if(roic>=15){s+=16;c.push("ROIC alto")} else if(roic>=10){s+=8} else if(roic>=5){s+=2} else {s-=12;c.push("ROIC bajo")} }
+  if(roe!==null){ if(roe>=15){s+=8} else if(roe>=10){s+=3} else if(roe<0){s-=10;c.push("ROE negativo")} }
+  if(gm!==null){ if(gm>=60){s+=12;c.push("márgenes brutos muy altos")} else if(gm>=40){s+=7} else if(gm<20){s-=6} }
+  if(nm!==null){ if(nm>=20){s+=12;c.push("margen neto muy positivo")} else if(nm>=10){s+=6} else if(nm<0){s-=15;c.push("margen neto negativo")} }
+  if(o.freeCashFlow!==null){ if(o.freeCashFlow>0){s+=6} else {s-=12;c.push("FCF negativo")} }
+  return {score:clamp(s),comment:c.join("; ")||"rentabilidad en línea con el promedio"};
+}
+function scoreCrecimiento(o){
+  let s=45; const c=[];
+  const g=asPct(o.revenueCAGR5!==null?o.revenueCAGR5:o.revenueGrowth);
+  if(g!==null){ if(g>=15){s+=30;c.push("crecimiento alto")} else if(g>=8){s+=18;c.push("crecimiento sólido")} else if(g>=5){s+=8} else if(g>=0){s-=2;c.push("crecimiento bajo")} else {s-=22;c.push("crecimiento negativo")} }
+  else { s-=5; c.push("sin dato de crecimiento"); }
+  const eg=asPct(o.epsGrowth);
+  if(eg!==null){ if(eg>=15){s+=10} else if(eg<0){s-=8;c.push("EPS en caída")} }
+  return {score:clamp(s),comment:c.join("; ")||"crecimiento moderado"};
+}
+function scoreBalance(o){
+  let s=55; const c=[];
+  const nd=o.netDebtToEbitda;
+  if(nd!==null){ if(nd<0){s+=25;c.push("caja neta")} else if(nd<1){s+=18;c.push("deuda muy baja")} else if(nd<=2.5){s+=6;c.push("apalancamiento aceptable")} else if(nd<=3){s-=6} else {s-=22;c.push("apalancamiento elevado")} }
+  const de=o.debtToEquity;
+  if(de!==null){ if(de<0.3){s+=8} else if(de>1.5){s-=8;c.push("deuda/equity alta")} }
+  if(o.netDebt!==null && o.netDebt<0){ s+=6; }
+  return {score:clamp(s),comment:c.join("; ")||"balance equilibrado"};
+}
+function scoreValuacion(o){
+  let s=52; const c=[];
+  const pe=o.peRatio, ev=o.evToEbitda, fy=asPct(o.fcfYield);
+  const g=asPct(o.revenueCAGR5!==null?o.revenueCAGR5:o.revenueGrowth);
+  if(pe!==null){
+    if(pe<0){s-=8;c.push("resultado negativo")}
+    else if(g!==null && pe < g*1.2){s+=16;c.push("P/E razonable vs crecimiento")}
+    else if(pe<15){s+=14;c.push("P/E bajo")}
+    else if(pe<25){s+=4}
+    else if(pe<40){s-=6;c.push("valuación exigente")}
+    else {s-=14;c.push("múltiplo muy alto")}
+  }
+  if(ev!==null){ if(ev<10){s+=10} else if(ev<15){s+=3} else if(ev>25){s-=10;c.push("EV/EBITDA elevado")} }
+  if(fy!==null){ if(fy>=6){s+=12;c.push("FCF yield atractivo")} else if(fy>=3){s+=5} else if(fy<1.5){s-=4} }
+  return {score:clamp(s),comment:c.join("; ")||"valuación en rango neutral"};
+}
+function scoreRiesgo(o){
+  let s=68; const c=[];
+  if(o.beta!==null){ if(o.beta>1.5){s-=14;c.push("beta elevada")} else if(o.beta>1.2){s-=6} else if(o.beta<0.9){s+=6} }
+  if(o.netDebtToEbitda!==null && o.netDebtToEbitda>3){s-=12;c.push("riesgo por deuda")}
+  const nm=asPct(o.netMargin); if(nm!==null && nm<0){s-=10;c.push("pérdidas")}
+  const sec=(o.sector||"").toLowerCase();
+  if(/energy|energ|material|industrial|commod/.test(sec)){s-=8;c.push("exposición a ciclo/commodities")}
+  if(o.missingData.length>=3){s-=8;c.push("faltan datos relevantes")}
+  const g=asPct(o.revenueGrowth); if(g!==null && g<0){s-=6}
+  return {score:clamp(s),comment:c.join("; ")||"perfil de riesgo controlado"};
+}
+function scoreCalidad(o){
+  let s=42; const c=[];
+  const roic=asPct(o.roic), gm=asPct(o.grossMargin), nm=asPct(o.netMargin);
+  if(roic!==null){ if(roic>=20){s+=20;c.push("retornos sobre capital excepcionales")} else if(roic>=15){s+=14} else if(roic>=10){s+=6} else if(roic<5){s-=8} }
+  if(gm!==null){ if(gm>=60){s+=16;c.push("poder de fijación de precios")} else if(gm>=40){s+=9} else if(gm<20){s-=8;c.push("márgenes bajos / commodity")} }
+  if(nm!==null){ if(nm>=20){s+=10} else if(nm<0){s-=10} }
+  const cc=o.cashConversion; if(cc!==null){ if(cc>=0.9){s+=8;c.push("buena conversión a caja")} else if(cc<0.5 && cc>0){s-=4} }
+  const g=asPct(o.revenueCAGR5!==null?o.revenueCAGR5:o.revenueGrowth);
+  if(g!==null && g>=10){s+=6}
+  const sec=(o.sector||"").toLowerCase();
+  if(/technology|tecnolog|software|health|salud|consumer defensive|consumo/.test(sec)){s+=4}
+  if(/energy|material|commod/.test(sec)){s-=6}
+  return {score:clamp(s),comment:c.join("; ")||"calidad de negocio intermedia"};
+}
+function scoreMoat(o){
+  let s=35; const c=[];
+  const roic=asPct(o.roic), gm=asPct(o.grossMargin), nm=asPct(o.netMargin);
+  if(roic!==null){ if(roic>=20){s+=28} else if(roic>=15){s+=20} else if(roic>=10){s+=8} }
+  if(gm!==null){ if(gm>=70){s+=22} else if(gm>=50){s+=14} else if(gm>=40){s+=8} else if(gm<20){s-=6} }
+  if(nm!==null && nm>=20){s+=10}
+  const g=asPct(o.revenueCAGR5!==null?o.revenueCAGR5:o.revenueGrowth);
+  if(g!==null && g>=15){s+=8}
+  return clamp(s);
+}
+function moatLabel(m){
+  if(m>=80)return{t:"Moat excepcional",col:"var(--green2)"};
+  if(m>=65)return{t:"Moat fuerte",col:"var(--green)"};
+  if(m>=48)return{t:"Moat moderado",col:"var(--gold2)"};
+  if(m>=30)return{t:"Moat débil",col:"var(--amber)"};
+  return{t:"Sin moat claro",col:"var(--muted)"};
+}
+
+const WEIGHTS={calidad:.25,rentabilidad:.20,crecimiento:.15,balance:.15,valuacion:.15,riesgo:.10};
+function computeScores(o){
+  const r={
+    calidad:scoreCalidad(o), rentabilidad:scoreRentabilidad(o), crecimiento:scoreCrecimiento(o),
+    balance:scoreBalance(o), valuacion:scoreValuacion(o), riesgo:scoreRiesgo(o)
+  };
+  const moat=scoreMoat(o);
+  const total=clamp(
+    r.calidad.score*WEIGHTS.calidad + r.rentabilidad.score*WEIGHTS.rentabilidad +
+    r.crecimiento.score*WEIGHTS.crecimiento + r.balance.score*WEIGHTS.balance +
+    r.valuacion.score*WEIGHTS.valuacion + r.riesgo.score*WEIGHTS.riesgo
+  );
+  o.scores=r; o.moatScore=moat; o.moat=moatLabel(moat); o.totalScore=total; o.classif=classify(total);
+  return o;
+}
+function classify(s){
+  if(s>=85)return{t:"Empresa excelente — analizar precio de entrada",col:"var(--green)",bg:"rgba(46,204,143,.15)"};
+  if(s>=70)return{t:"Empresa atractiva — requiere seguimiento",col:"var(--green2)",bg:"rgba(46,204,143,.1)"};
+  if(s>=55)return{t:"Empresa aceptable — oportunidad condicional",col:"var(--gold2)",bg:"rgba(230,183,74,.12)"};
+  if(s>=40)return{t:"Empresa débil o cara — alto nivel de revisión",col:"var(--amber)",bg:"rgba(245,166,35,.12)"};
+  return{t:"No invertible con los datos actuales",col:"#ff8085",bg:"rgba(242,84,91,.14)"};
+}
+function scoreColor(s){ if(s>=70)return"var(--green)"; if(s>=55)return"var(--gold2)"; if(s>=40)return"var(--amber)"; return"var(--red)"; }
+
+/* ============================================================
+   MÓDULOS DERIVADOS (semáforo, moat, red flags, comité, escenarios, tesis, balance)
+   ============================================================ */
+
+/* ---------- SEMÁFORO BUFFETT / MUNGER ---------- */
+function buildSemaforo(o){
+  const gm=asPct(o.grossMargin), nm=asPct(o.netMargin), roic=asPct(o.roic), g=asPct(o.revenueCAGR5!==null?o.revenueCAGR5:o.revenueGrowth);
+  const L=(ok,mid)=>ok?"green":(mid?"amber":"red");
+  const q=[];
+  q.push({q:"¿Entiendo el negocio?",l:o.description?"green":"amber",c:o.description?"Modelo y sector identificados.":"Falta descripción del negocio."});
+  q.push({q:"¿Tiene ventaja competitiva?",l:L(o.moatScore>=65,o.moatScore>=48),c:o.moat.t+"."});
+  q.push({q:"¿Tiene buenos márgenes?",l:L(nm!==null&&nm>=15,nm!==null&&nm>=8),c:nm===null?"N/D":`Margen neto ${formatPercent(nm,true)}.`});
+  q.push({q:"¿Genera caja?",l:o.freeCashFlow!==null?(o.freeCashFlow>0?"green":"red"):"amber",c:o.freeCashFlow===null?"N/D":(o.freeCashFlow>0?`FCF positivo (${fmtBig(o.freeCashFlow,o.currency)}).`:"FCF negativo.")});
+  q.push({q:"¿Tiene deuda controlada?",l:o.netDebtToEbitda===null?"amber":L(o.netDebtToEbitda<1.5,o.netDebtToEbitda<=3),c:o.netDebtToEbitda===null?"N/D":`Deuda neta/EBITDA ${o.netDebtToEbitda.toLocaleString("es-AR",{maximumFractionDigits:1})}x.`});
+  q.push({q:"¿Buen retorno sobre el capital?",l:roic===null?"amber":L(roic>=15,roic>=10),c:roic===null?"N/D":`ROIC ${formatPercent(roic,true)}.`});
+  q.push({q:"¿Crece de forma rentable?",l:(g!==null&&g>=8&&nm!==null&&nm>0)?"green":(g!==null&&g>=0?"amber":"red"),c:g===null?"N/D":`Crecimiento ${formatPercent(g,true)}.`});
+  q.push({q:"¿Puede sostener su posición a 10 años?",l:L(o.moatScore>=65&&(gm===null||gm>=40),o.moatScore>=48),c:"Depende de la durabilidad del moat."});
+  q.push({q:"¿La valuación es razonable?",l:L(o.scores.valuacion.score>=60,o.scores.valuacion.score>=45),c:o.scores.valuacion.comment+"."});
+  q.push({q:"¿El downside está controlado?",l:L(o.scores.riesgo.score>=65,o.scores.riesgo.score>=45),c:o.scores.riesgo.comment+"."});
+  return q;
+}
+
+/* ---------- MOAT ANALYSIS ---------- */
+function buildMoat(o){
+  const gm=asPct(o.grossMargin), roic=asPct(o.roic), nm=asPct(o.netMargin), g=asPct(o.revenueCAGR5!==null?o.revenueCAGR5:o.revenueGrowth);
+  const items=[];
+  const add=(t,on,ev,strength,risk)=>items.push({t,on,ev,strength,risk});
+  const strong=(v)=>v?"Fuerte":"Moderada";
+  add("Poder de fijación de precios", gm!==null&&gm>=60?"on":(gm!==null&&gm>=40?"mid":"off"),
+     gm===null?"Sin dato de margen bruto.":`Margen bruto de ${formatPercent(gm,true)} sugiere ${gm>=60?"alto":gm>=40?"moderado":"bajo"} poder de precio.`,
+     gm!==null&&gm>=60?"Fuerte":"Moderada","Presión competitiva o entrada de sustitutos.");
+  add("Eficiencia / retornos sobre capital", roic!==null&&roic>=15?"on":(roic!==null&&roic>=10?"mid":"off"),
+     roic===null?"Sin dato de ROIC.":`ROIC de ${formatPercent(roic,true)} ${roic>=15?"muy por encima del costo de capital":roic>=10?"razonable":"bajo"}.`,
+     roic!==null&&roic>=20?"Fuerte":"Moderada","Erosión de retornos si aumenta la competencia.");
+  add("Escala / rentabilidad neta", nm!==null&&nm>=20?"on":(nm!==null&&nm>=10?"mid":"off"),
+     nm===null?"Sin dato de margen neto.":`Margen neto de ${formatPercent(nm,true)}.`,
+     nm!==null&&nm>=20?"Fuerte":"Moderada","Dilución de márgenes por costos o mix.");
+  const sec=(o.sector||"").toLowerCase();
+  const intangible=/technology|tecnolog|software|health|salud|communication|consumer/.test(sec);
+  add("Marca / intangibles / efecto red", intangible&&gm!==null&&gm>=50?"on":(intangible?"mid":"off"),
+     `Sector ${o.sector||"N/D"}. ${intangible?"Sector afín a activos intangibles, marca o efecto red.":"Sector con menor peso de intangibles."}`,
+     intangible?"Moderada":"Débil","Disrupción tecnológica o cambio de preferencias.");
+  add("Crecimiento estructural del mercado", g!==null&&g>=15?"on":(g!==null&&g>=8?"mid":"off"),
+     g===null?"Sin dato de crecimiento.":`Crecimiento de ingresos de ${formatPercent(g,true)}.`,
+     g!==null&&g>=15?"Fuerte":"Moderada","Saturación o desaceleración del mercado.");
+  return items;
+}
+
+/* ---------- RED FLAG SCANNER ---------- */
+function buildRedFlags(o){
+  const f=[]; const gm=asPct(o.grossMargin), nm=asPct(o.netMargin), roic=asPct(o.roic), g=asPct(o.revenueGrowth), fy=asPct(o.fcfYield);
+  const push=(name,sev,expl,monitor,action)=>f.push({name,sev,expl,monitor,action});
+  // sev: ok | baja | media | alta | critica
+  if(g!==null){ if(g<0)push("Caída de ingresos","alta",`Ingresos con crecimiento de ${formatPercent(g,true)}.`,"Ingresos trimestrales","Revisar causas y guidance."); else if(g<3)push("Crecimiento desacelerando","media",`Crecimiento bajo (${formatPercent(g,true)}).`,"Tendencia de ingresos","Comparar con el sector."); else push("Dinámica de ingresos","ok",`Crecimiento sano (${formatPercent(g,true)}).`,"Ingresos","—"); }
+  if(o.freeCashFlow!==null){ if(o.freeCashFlow<0)push("Free cash flow negativo","critica","La empresa quema caja.","FCF y capex","Analizar sostenibilidad de la caja."); else push("Generación de caja","ok","FCF positivo.","FCF","—"); }
+  if(o.cashConversion!==null && o.cashConversion<0.6 && o.freeCashFlow>0) push("FCF menor que utilidad neta","media",`Conversión de utilidad a caja de ${formatPercent(o.cashConversion,true)}.`,"Calidad de las ganancias","Verificar devengamientos y capex.");
+  if(o.netDebtToEbitda!==null){ if(o.netDebtToEbitda>3)push("Apalancamiento elevado","alta",`Deuda neta/EBITDA de ${o.netDebtToEbitda.toLocaleString("es-AR",{maximumFractionDigits:1})}x.`,"Deuda y cobertura","Revisar vencimientos y tasas."); else if(o.netDebtToEbitda>2.5)push("Deuda a vigilar","media",`Deuda neta/EBITDA de ${o.netDebtToEbitda.toLocaleString("es-AR",{maximumFractionDigits:1})}x.`,"Evolución de la deuda","Seguimiento."); else push("Balance","ok","Deuda bajo control.","Deuda","—"); }
+  if(nm!==null && nm<0) push("Márgenes negativos","alta","Resultado neto negativo.","Márgenes","Revisar estructura de costos.");
+  else if(gm!==null && gm<20) push("Márgenes bajos / commodity","media",`Margen bruto de ${formatPercent(gm,true)}.`,"Márgenes","Evaluar poder de precio.");
+  if(o.peRatio!==null && o.peRatio>40 && (g===null||g<15)) push("P/E alto sin crecimiento","alta",`P/E de ${formatNumber(o.peRatio)} con crecimiento limitado.`,"Múltiplos vs crecimiento","Exigir margen de seguridad.");
+  else if(o.scores.valuacion.score<40) push("Valuación muy exigente","media","Múltiplos por encima del rango razonable.","Valuación","Esperar mejor precio de entrada.");
+  if(o.evToEbitda!==null && o.evToEbitda>25) push("EV/EBITDA elevado","media",`EV/EBITDA de ${formatNumber(o.evToEbitda)}.`,"Expansión de márgenes","Verificar que crezcan los márgenes.");
+  if(o.beta!==null && o.beta>1.5) push("Beta elevada","media",`Beta de ${o.beta.toLocaleString("es-AR",{maximumFractionDigits:2})}.`,"Volatilidad","Dimensionar la posición.");
+  const sec=(o.sector||"").toLowerCase();
+  if(/energy|material|commod|industrial/.test(sec)) push("Exposición a commodities / ciclo","media",`Sector ${o.sector} sensible al ciclo y a los precios de commodities.`,"Precios de commodities","Analizar sensibilidad.");
+  if(o.missingData.length>=1) push("Faltan datos relevantes",o.missingData.length>=3?"alta":"baja",`Sin dato de: ${o.missingData.join(", ")}.`,"Completar información","Cargar datos manualmente.");
+  return f;
+}
+
+/* ---------- INVESTMENT COMMITTEE ---------- */
+function buildCommittee(o){
+  const s=o.scores, nm=asPct(o.netMargin), roic=asPct(o.roic), g=asPct(o.revenueCAGR5!==null?o.revenueCAGR5:o.revenueGrowth);
+  const good=(x)=>x>=60;
+  return [
+    {name:"Warren Buffett",role:"Calidad, moat y precio razonable",col:"linear-gradient(135deg,#e6b74a,#c99327)",
+     verdict: good(s.calidad.score)&&good(s.valuacion.score)?"Negocio de calidad a precio atendible":good(s.calidad.score)?"Gran negocio, pero el precio pide paciencia":"La calidad no alcanza mi umbral",
+     pro:o.moat.t+"; "+s.rentabilidad.comment, con:s.valuacion.score<55?"Valuación exigente frente al valor intrínseco":"Márgenes a defender en el tiempo",
+     qk:"¿Seguirá teniendo ventaja competitiva dentro de 10 años?"},
+    {name:"Charlie Munger",role:"Riesgos, errores y trampas",col:"linear-gradient(135deg,#8b97b3,#5f6b8a)",
+     verdict: s.riesgo.score>=60?"Sin trampas evidentes, pero invertí la lógica":"Demasiados focos de riesgo para mi gusto",
+     pro:"Modelo "+(o.description?"comprensible":"a clarificar")+"; "+s.balance.comment, con:s.riesgo.comment,
+     qk:"¿Qué tendría que pasar para que esta tesis fracase por completo?"},
+    {name:"Ray Dalio",role:"Macro, tasas y ciclo",col:"linear-gradient(135deg,#3d7dff,#2a5edb)",
+     verdict:(o.beta!==null&&o.beta>1.3)||/energy|material|industrial/.test((o.sector||"").toLowerCase())?"Alta sensibilidad al ciclo y a las tasas":"Exposición macro manejable",
+     pro:"Diversificar es clave; "+(o.netDebt!==null&&o.netDebt<0?"caja neta amortigua shocks":"balance a monitorear"), con:"Sensibilidad a tasas, moneda y ciclo económico",
+     qk:"¿Cómo se comporta este negocio en un escenario de tasas altas y menor liquidez?"},
+    {name:"Aswath Damodaran",role:"Valuación, FCF y supuestos",col:"linear-gradient(135deg,#2ecc8f,#1fa873)",
+     verdict:s.valuacion.score>=60?"Los números cierran con supuestos razonables":s.valuacion.score>=45?"El precio descuenta bastante optimismo":"El mercado paga supuestos muy agresivos",
+     pro:o.fcfYield!==null?`FCF yield de ${formatPercent(asPct(o.fcfYield),true)}`:"Revisar generación de FCF", con:o.peRatio!==null?`P/E de ${formatNumber(o.peRatio)}; el crecimiento debe justificarlo`:"Faltan múltiplos clave",
+     qk:"¿Qué crecimiento y margen implícito hay que creer para justificar el precio actual?"},
+    {name:"Morgan Housel",role:"Comportamiento y expectativas",col:"linear-gradient(135deg,#f5cd63,#d29e2e)",
+     verdict:"El mayor riesgo suele ser la narrativa, no los números",
+     pro:"Historia "+(o.totalScore>=70?"atractiva y fácil de contar":"con matices"), con:o.totalScore>=75?"Cuidado con la sobreconfianza cuando todo luce bien":"Expectativas del mercado a contrastar",
+     qk:"¿Estás invirtiendo en el negocio o en la historia que te contás sobre él?"},
+    {name:"Peter Thiel",role:"Monopolio y captura de valor",col:"linear-gradient(135deg,#b06bff,#7d3ee6)",
+     verdict:o.moatScore>=65?"Rasgos de negocio dominante y escalable":o.moatScore>=48?"Ventaja real pero no un monopolio":"Competencia perfecta: márgenes bajo presión",
+     pro:roic!==null&&roic>=15?"Retornos sobre capital propios de un negocio con poder de mercado":"Escalabilidad a demostrar", con:o.moatScore<65?"Falta evidencia de captura de valor duradera":"Defender la posición del ataque de nuevos entrantes",
+     qk:"¿Este negocio es único o compite en un mercado sin diferenciación?"}
+  ];
+}
+
+/* ---------- VALUACIÓN POR ESCENARIOS ---------- */
+function buildScenarios(o){
+  if(o.freeCashFlow===null || o.freeCashFlow<=0 || !o.marketCap) return null;
+  const base=asPct(o.revenueCAGR5!==null?o.revenueCAGR5:o.revenueGrowth)||6;
+  const scen=[
+    {name:"Conservador",growth:Math.max(2,base*0.5),exitMult:14,disc:12,years:5,col:"var(--amber)"},
+    {name:"Base",growth:Math.max(4,base),exitMult:18,disc:10,years:5,col:"var(--blue2)"},
+    {name:"Optimista",growth:base*1.4+2,exitMult:24,disc:9,years:5,col:"var(--green2)"}
+  ];
+  return scen.map(s=>{
+    const growth=s.growth/100, disc=s.disc/100;
+    const fcfN=o.freeCashFlow*Math.pow(1+growth,s.years);
+    const terminal=fcfN*s.exitMult;
+    const pv=terminal/Math.pow(1+disc,s.years);
+    const upside=(pv-o.marketCap)/o.marketCap;
+    return {...s, fcfFuture:fcfN, terminal, pv, upside,
+      interp: upside>=0.25?"Margen de seguridad amplio bajo estos supuestos":upside>=0?"Upside moderado; supuestos deben cumplirse":upside>=-0.2?"Precio actual descuenta buena parte del valor":"Valuación exigente bajo estos supuestos"};
+  });
+}
+
+/* ---------- TESIS 3 VERSIONES ---------- */
+function strongestPoint(o){
+  const e=Object.entries(o.scores).sort((a,b)=>b[1].score-a[1].score)[0];
+  const map={calidad:"la calidad del negocio",rentabilidad:"la rentabilidad",crecimiento:"el crecimiento",balance:"la solidez del balance",valuacion:"la valuación",riesgo:"el perfil de riesgo controlado"};
+  return {label:map[e[0]],detail:e[1].comment};
+}
+function weakestPoint(o){
+  const e=Object.entries(o.scores).sort((a,b)=>a[1].score-b[1].score)[0];
+  const map={calidad:"la calidad del negocio",rentabilidad:"la rentabilidad",crecimiento:"el crecimiento",balance:"el nivel de deuda",valuacion:"la valuación exigente",riesgo:"el nivel de riesgo"};
+  return {label:map[e[0]],detail:e[1].comment};
+}
+function conclusionShort(o){
+  const s=o.totalScore, val=o.scores.valuacion.score, cal=o.scores.calidad.score;
+  if(cal>=65 && val<50) return "Calidad alta, pero precio exigente";
+  if(cal<50 && val>=60) return "Posible trampa de valor: barata pero con riesgos relevantes";
+  if(s>=70) return "Interesante para seguir";
+  if(s>=55) return "Requiere mayor análisis";
+  return "No suficientemente atractiva con los datos actuales";
+}
+function buildThesis(o){
+  const sp=strongestPoint(o), wp=weakestPoint(o), concl=conclusionShort(o);
+  const cur=o.currency||"USD";
+  const exec=`${o.companyName} (${o.ticker}) obtiene un score de ${o.totalScore}/100 — ${o.classif.t}.
+Moat: ${o.moat.t}. Mayor fortaleza: ${sp.label}. Mayor riesgo: ${wp.label}.
+Valuación: ${o.scores.valuacion.comment}. Conclusión: ${concl}.`;
+  const analyst=`QUÉ HACE
+${o.description||"Descripción no disponible (N/D)."}
+Sector: ${o.sector||"N/D"} · Industria: ${o.industry||"N/D"} · ${o.exchange||"N/D"}.
+
+POR QUÉ PUEDE SER INTERESANTE
+Score general ${o.totalScore}/100 (${o.classif.t}). ${o.moat.t}. Destaca ${sp.label} (${sp.detail}).
+
+DRIVERS DE CRECIMIENTO
+Crecimiento de ingresos ${formatPercent(asPct(o.revenueCAGR5!==null?o.revenueCAGR5:o.revenueGrowth),true)}; márgenes: bruto ${formatPercent(asPct(o.grossMargin),true)}, neto ${formatPercent(asPct(o.netMargin),true)}; ROIC ${formatPercent(asPct(o.roic),true)}.
+
+RIESGOS
+${wp.label} (${wp.detail}). ${o.scores.riesgo.comment}.
+
+VALUACIÓN
+Precio ${formatCurrency(o.price,cur)} · Market cap ${fmtBig(o.marketCap,cur)} · P/E ${formatNumber(o.peRatio)} · EV/EBITDA ${formatNumber(o.evToEbitda)} · FCF yield ${formatPercent(asPct(o.fcfYield),true)}.
+
+DATOS FALTANTES
+${o.missingData.length?o.missingData.join(", ")+".":"Sin datos clave faltantes."}
+
+QUÉ MONITOREAR
+Evolución de márgenes, generación de FCF, nivel de deuda y sostenibilidad del crecimiento.
+
+CONCLUSIÓN
+${concl}.`;
+  const linkedin=`Analicé ${o.companyName} (${o.ticker}) con Moat Scanner.
+
+Score general: ${o.totalScore}/100
+Moat: ${o.moat.t}
+Mayor fortaleza: ${sp.label}
+Mayor riesgo: ${wp.label}
+Conclusión: ${concl}
+
+La clave no es adivinar precios.
+La clave es entender negocios, riesgos y valuación.
+
+#inversiones #análisisfundamental #DescalziFinanzas
+(${DISCLAIMER})`;
+  return {exec,analyst,linkedin,sp,wp,concl};
+}
+
+/* ---------- QUÉ MIRAR EN EL PRÓXIMO BALANCE ---------- */
+function buildNextEarnings(o){
+  const gm=asPct(o.grossMargin), nd=o.netDebtToEbitda, g=asPct(o.revenueGrowth);
+  const sec=(o.sector||"").toLowerCase();
+  const P=(t,imp,d)=>({t,imp,d});
+  const items=[
+    P("Crecimiento de ingresos", g!==null&&g<8?"alta":"media", "Confirmar aceleración o desaceleración vs trimestres previos."),
+    P("Evolución de márgenes", gm!==null&&gm<40?"alta":"media", "Vigilar margen bruto y operativo ante costos e inflación."),
+    P("Utilidad neta", "media", "Comparar con expectativas y con el mismo trimestre del año anterior."),
+    P("Free cash flow", o.freeCashFlow!==null&&o.freeCashFlow<0?"alta":"alta", "Verificar conversión de utilidad en caja."),
+    P("Deuda", nd!==null&&nd>2.5?"alta":"media", "Seguir deuda neta/EBITDA y vencimientos."),
+    P("Capex", "media", "Ver si la inversión sostiene el crecimiento sin destruir FCF."),
+    P("Recompra de acciones", "baja", "Evaluar si la recompra es a precios razonables."),
+    P("Guidance", "alta", "La guía de la gerencia suele mover más que el resultado."),
+    P("Inventarios", /consumer|retail|industrial|material/.test(sec)?"media":"baja", "Acumulación de inventario puede anticipar menor demanda."),
+    P("Comentarios del management", "media", "Tono sobre demanda, precios y competencia."),
+    P("Segmento más relevante", "media", "Seguir la unidad que más aporta a ingresos y márgenes."),
+    P("Riesgos regulatorios", /financial|health|energy|communication/.test(sec)?"alta":"baja", "Cambios normativos que afecten el negocio."),
+    P("Sensibilidad a tasas / commodities", /energy|material|financial|industrial/.test(sec)?"alta":"baja", "Impacto de tasas y precios de insumos en el resultado.")
+  ];
+  const order={alta:0,media:1,baja:2};
+  return items.sort((a,b)=>order[a.imp]-order[b.imp]);
+}
+
+/* ============================================================
+   RENDER DEL DASHBOARD
+   ============================================================ */
+function el(id){return document.getElementById(id);}
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+const SCORE_LABELS={calidad:"Calidad",rentabilidad:"Rentabilidad",crecimiento:"Crecimiento",balance:"Balance / deuda",valuacion:"Valuación",riesgo:"Riesgo"};
+
+function renderDashboard(o){
+  CURRENT=o;
+  const cur=o.currency||"USD";
+  const sema=buildSemaforo(o), moat=buildMoat(o), flags=buildRedFlags(o),
+        comm=buildCommittee(o), scen=buildScenarios(o), thesis=buildThesis(o), nextE=buildNextEarnings(o);
+  o._thesis=thesis;
+
+  // KPIs
+  const kpis=[
+    {k:"Ingresos",v:fmtBig(o.revenue,cur),i:"Facturación anual",st:"blue"},
+    {k:"Crecimiento ingresos",v:formatPercent(asPct(o.revenueCAGR5!==null?o.revenueCAGR5:o.revenueGrowth),true),i:"CAGR / interanual",st:stGrowth(asPct(o.revenueGrowth))},
+    {k:"Margen bruto",v:formatPercent(asPct(o.grossMargin),true),i:"Poder de precio",st:stPct(asPct(o.grossMargin),40,60)},
+    {k:"Margen operativo",v:formatPercent(asPct(o.operatingMargin),true),i:"Eficiencia",st:stPct(asPct(o.operatingMargin),12,25)},
+    {k:"Margen neto",v:formatPercent(asPct(o.netMargin),true),i:"Rentabilidad final",st:stPct(asPct(o.netMargin),10,20)},
+    {k:"ROE",v:formatPercent(asPct(o.roe),true),i:"Retorno sobre patrimonio",st:stPct(asPct(o.roe),10,15)},
+    {k:"ROIC",v:formatPercent(asPct(o.roic),true),i:"Retorno sobre capital",st:stPct(asPct(o.roic),10,15)},
+    {k:"Deuda neta / EBITDA",v:o.netDebtToEbitda==null?"N/D":o.netDebtToEbitda.toLocaleString("es-AR",{maximumFractionDigits:1})+"x",i:"Apalancamiento",st:stDebt(o.netDebtToEbitda)},
+    {k:"P/E",v:formatNumber(o.peRatio),i:"Precio / ganancias",st:stMult(o.peRatio,25,40)},
+    {k:"EV/EBITDA",v:formatNumber(o.evToEbitda),i:"Valor empresa / EBITDA",st:stMult(o.evToEbitda,15,25)},
+    {k:"FCF yield",v:formatPercent(asPct(o.fcfYield),true),i:"Rendimiento de caja libre",st:stPct(asPct(o.fcfYield),3,6)},
+    {k:"Free cash flow",v:fmtBig(o.freeCashFlow,cur),i:"Caja libre generada",st:o.freeCashFlow>0?"green":o.freeCashFlow==null?"blue":"red"},
+    {k:"Market cap",v:fmtBig(o.marketCap,cur),i:"Capitalización",st:"blue"},
+    {k:"Enterprise value",v:fmtBig(o.enterpriseValue,cur),i:"Valor de empresa",st:"blue"}
+  ];
+
+  let html=`
+  <div id="reportRoot">
+  <!-- HERO -->
+  <div class="section hero">
+    <div class="hero-main">
+      <div class="co-name">${esc(o.companyName)} <span style="color:var(--muted)">(${esc(o.ticker)})</span></div>
+      <div class="co-meta">
+        <span class="chip">${esc(o.sector||"Sector N/D")}</span>
+        <span class="chip">${esc(o.industry||"Industria N/D")}</span>
+        ${o.exchange?`<span class="chip">${esc(o.exchange)}</span>`:""}
+        <span class="chip gold">${esc(o.moat.t)}</span>
+      </div>
+      <div class="price-row">
+        <div class="pv">Precio<b>${formatCurrency(o.price,cur)}</b></div>
+        <div class="pv">Market cap<b>${fmtBig(o.marketCap,cur)}</b></div>
+        <div class="pv">Enterprise value<b>${fmtBig(o.enterpriseValue,cur)}</b></div>
+        <div class="pv">Fuente<b style="font-size:14px">${esc(o.source)}</b></div>
+      </div>
+      <p style="color:var(--muted);font-size:13px;margin-top:16px;max-width:640px">${esc((o.description||"Descripción no disponible.").slice(0,260))}${(o.description||"").length>260?"…":""}</p>
+    </div>
+    <div class="card score-box">
+      <div class="score-ring">
+        <canvas id="scoreGauge" width="170" height="170"></canvas>
+        <div class="num"><b style="color:${scoreColor(o.totalScore)}">${o.totalScore}</b><span>de 100</span></div>
+      </div>
+      <div class="classif" style="color:${o.classif.col};background:${o.classif.bg}">${esc(o.classif.t)}</div>
+    </div>
+  </div>
+
+  <!-- SCORES + RADAR -->
+  <div class="section grid" style="grid-template-columns:1fr 1fr">
+    <div class="card">
+      <h3>Score por categoría</h3>
+      <div class="sbars">
+        ${Object.keys(SCORE_LABELS).map(k=>{const sc=o.scores[k].score;return `
+        <div class="sbar-row" title="${esc(o.scores[k].comment)}">
+          <span>${SCORE_LABELS[k]} <span style="color:var(--muted2)">${Math.round(WEIGHTS[k]*100)}%</span></span>
+          <div class="sbar-track"><div class="sbar-fill" style="width:${sc}%;background:${scoreColor(sc)}"></div></div>
+          <span class="sbar-val" style="color:${scoreColor(sc)}">${sc}</span>
+        </div>`}).join("")}
+      </div>
+    </div>
+    <div class="card">
+      <h3>Radar de inversión</h3>
+      <canvas id="radarChart" height="230"></canvas>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="section">
+    <div class="section-title"><span class="bar"></span>KPIs financieros</div>
+    <div class="grid kpis">
+      ${kpis.map(k=>`<div class="kpi"><div class="k">${k.k}</div><div class="v">${k.v}</div><div class="i"><span class="dot d-${k.st}"></span>${k.i}</div></div>`).join("")}
+    </div>
+  </div>
+
+  <!-- SEMAFORO -->
+  <div class="section">
+    <div class="section-title"><span class="bar"></span>Semáforo Buffett / Munger</div>
+    <div class="grid sema">
+      ${sema.map(q=>`<div class="sema-item"><div class="light l-${q.l}"></div><div><div class="q">${esc(q.q)}</div><div class="c">${esc(q.c)}</div></div></div>`).join("")}
+    </div>
+  </div>
+
+  <!-- MOAT -->
+  <div class="section">
+    <div class="section-title"><span class="bar"></span>Moat Analysis · <span class="moat-badge" style="background:${o.moat.col}22;color:${o.moat.col}">${esc(o.moat.t)}</span></div>
+    <div class="grid moat-list">
+      ${moat.map(m=>`<div class="moat-card ${m.on}"><div class="t">${esc(m.t)} <small>${m.on==="on"?"Presente":m.on==="mid"?"Parcial":"Débil"}</small></div><div class="e">${esc(m.ev)}</div><div class="e"><b style="color:var(--text)">Fortaleza:</b> ${esc(m.strength)} · <b style="color:var(--text)">Riesgo:</b> ${esc(m.risk)}</div></div>`).join("")}
+    </div>
+  </div>
+
+  <!-- MATRIX + REDFLAGS -->
+  <div class="section grid" style="grid-template-columns:1fr 1fr">
+    <div class="card">
+      <h3>Quality vs Valuation Matrix</h3>
+      <div class="matrix-wrap"><canvas id="matrixChart" height="300"></canvas></div>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px">Posición según calidad del negocio (eje vertical) y atractivo de valuación (eje horizontal).</p>
+    </div>
+    <div class="card">
+      <h3>Quality vs Valuation — cuadrante</h3>
+      <div id="quadrantBox"></div>
+    </div>
+  </div>
+
+  <!-- RED FLAG SCANNER -->
+  <div class="section">
+    <div class="section-title"><span class="bar"></span>Red Flag Scanner</div>
+    <div class="grid rf">
+      ${flags.map(f=>{const cls=f.sev==="ok"?"ok":(f.sev==="baja"||f.sev==="media"?"warn":"alert");const sev=f.sev==="ok"?'<span class="sev sev-ok">Sin alerta</span>':`<span class="sev sev-${f.sev}">${f.sev.toUpperCase()}</span>`;
+        return `<div class="rf-card ${cls}"><div class="t">${esc(f.name)} ${sev}</div><div class="d">${esc(f.expl)}</div>${f.monitor&&f.action!=="—"?`<div class="d"><b style="color:var(--text)">Monitorear:</b> ${esc(f.monitor)}. <b style="color:var(--text)">Acción:</b> ${esc(f.action)}</div>`:""}</div>`}).join("")}
+    </div>
+  </div>
+
+  <!-- INVESTMENT COMMITTEE -->
+  <div class="section">
+    <div class="section-title"><span class="bar"></span>Investment Committee</div>
+    <div class="grid comm">
+      ${comm.map(c=>`<div class="comm-card"><div class="comm-head"><div class="avatar" style="background:${c.col}">${esc(c.name.split(" ").map(x=>x[0]).join("").slice(0,2))}</div><div><div class="name">${esc(c.name)}</div><div class="role">${esc(c.role)}</div></div></div><div class="verdict">${esc(c.verdict)}</div><div class="pro"><b>✓ A favor:</b> ${esc(c.pro)}</div><div class="con"><b>✗ En contra:</b> ${esc(c.con)}</div><div class="qk">❓ ${esc(c.qk)}</div></div>`).join("")}
+    </div>
+  </div>`;
+
+  // SCENARIOS
+  if(scen){
+    html+=`
+    <div class="section">
+      <div class="section-title"><span class="bar"></span>Valuación por escenarios</div>
+      <div class="card" style="overflow-x:auto">
+        <table class="tbl"><thead><tr><th>Escenario</th><th>Crecimiento</th><th>Múltiplo salida</th><th>Tasa desc.</th><th>Años</th><th>Valor presente est.</th><th>Upside/Downside</th><th>Interpretación</th></tr></thead><tbody>
+        ${scen.map(s=>`<tr><td><b style="color:${s.col}">${s.name}</b></td><td class="num">${formatPercent(s.growth,true)}</td><td class="num">${formatNumber(s.exitMult)}x</td><td class="num">${formatPercent(s.disc,true)}</td><td class="num">${s.years}</td><td class="num">${fmtBig(s.pv,cur)}</td><td class="num" style="color:${s.upside>=0?"var(--green2)":"#ff8085"}">${s.upside>=0?"+":""}${formatPercent(s.upside,true)}</td><td>${esc(s.interp)}</td></tr>`).join("")}
+        </tbody></table>
+        <p style="font-size:12px;color:var(--muted);margin-top:10px">Modelo simplificado FCF × múltiplo de salida descontado a valor presente. Supuestos ilustrativos, no un precio objetivo.</p>
+      </div>
+    </div>`;
+  } else {
+    html+=`<div class="section"><div class="section-title"><span class="bar"></span>Valuación por escenarios</div><div class="status warn show">No hay FCF positivo o market cap suficiente para modelar escenarios. Requiere revisión / carga manual.</div></div>`;
+  }
+
+  // THESIS
+  html+=`
+  <div class="section">
+    <div class="section-title"><span class="bar"></span>Tesis de inversión</div>
+    <div class="card">
+      <div class="thesis-tabs">
+        <div class="tt active" data-th="exec">Ejecutiva</div>
+        <div class="tt" data-th="analyst">Analista</div>
+        <div class="tt" data-th="linkedin">LinkedIn</div>
+      </div>
+      <div class="thesis-body" id="thesisBody">${esc(thesis.exec)}</div>
+      <div class="exportbar"><button class="btn btn-ghost" id="btnCopyThesis">📋 Copiar versión actual</button></div>
+    </div>
+  </div>
+
+  <!-- NEXT EARNINGS -->
+  <div class="section">
+    <div class="section-title"><span class="bar"></span>Qué mirar en el próximo balance</div>
+    <div class="card" style="overflow-x:auto">
+      <table class="tbl"><thead><tr><th>Punto a monitorear</th><th>Importancia</th><th>Detalle</th></tr></thead><tbody>
+      ${nextE.map(p=>`<tr><td><b>${esc(p.t)}</b></td><td><span class="sev sev-${p.imp==="alta"?"alta":p.imp==="media"?"media":"baja"}">${p.imp.toUpperCase()}</span></td><td>${esc(p.d)}</td></tr>`).join("")}
+      </tbody></table>
+    </div>
+  </div>
+
+  <!-- EXPORT BAR -->
+  <div class="section">
+    <div class="section-title"><span class="bar"></span>Exportar y compartir</div>
+    <div class="card">
+      <div class="exportbar">
+        <button class="btn btn-primary" id="btnPDF">📄 Descargar PDF</button>
+        <button class="btn btn-green" id="btnExcel">📊 Descargar Excel</button>
+        <button class="btn btn-gold" id="btnPlaca">🖼 Generar placa LinkedIn</button>
+        <button class="btn btn-ghost" id="btnCopyLinkedin">📋 Copiar copy LinkedIn</button>
+        <button class="btn btn-ghost" id="btnSaveWatch">⭐ Guardar en watchlist</button>
+        <button class="btn btn-ghost" id="btnEditData">✎ Editar datos</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="disclaimer"><b style="color:var(--gold2)">Advertencia profesional.</b> ${DISCLAIMER}<br><span style="color:var(--muted2)">Generado el ${new Date().toLocaleString("es-AR")} · Fuente: ${esc(o.source)}${o.missingData.length?" · Datos faltantes: "+esc(o.missingData.join(", ")):""}</span></div>
+  </div>`;
+
+  const dash=el("dashboard");
+  dash.innerHTML=html; dash.classList.remove("hidden");
+  renderScoreGauge(o.totalScore);
+  renderRadar(o);
+  renderMatrix([{o,color:"#3d7dff",label:o.ticker}]);
+  renderQuadrant(o);
+  wireDashboard(o,thesis);
+  dash.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+function stPct(v,mid,hi){ if(v==null)return"blue"; if(v>=hi)return"green"; if(v>=mid)return"amber"; return"red"; }
+function stGrowth(v){ if(v==null)return"blue"; if(v>=8)return"green"; if(v>=0)return"amber"; return"red"; }
+function stDebt(v){ if(v==null)return"blue"; if(v<1.5)return"green"; if(v<=3)return"amber"; return"red"; }
+function stMult(v,mid,hi){ if(v==null)return"blue"; if(v<mid)return"green"; if(v<hi)return"amber"; return"red"; }
+
+/* ---------- CHARTS ---------- */
+function renderScoreGauge(score){
+  const ctx=el("scoreGauge"); if(!ctx)return;
+  new Chart(ctx,{type:"doughnut",data:{datasets:[{data:[score,100-score],backgroundColor:[scoreColor(score),"#1a2338"],borderWidth:0,cutout:"78%"}]},
+    options:{responsive:false,plugins:{legend:{display:false},tooltip:{enabled:false}},animation:{animateRotate:true}}});
+}
+function renderRadar(o){
+  const ctx=el("radarChart"); if(!ctx)return;
+  if(radarChart)radarChart.destroy();
+  const data=[o.scores.calidad.score,o.scores.crecimiento.score,o.scores.rentabilidad.score,o.scores.balance.score,o.scores.valuacion.score,o.scores.riesgo.score,o.moatScore];
+  radarChart=new Chart(ctx,{type:"radar",data:{labels:["Calidad","Crecimiento","Rentabilidad","Balance","Valuación","Riesgo","Moat"],
+    datasets:[{label:o.ticker,data,backgroundColor:"rgba(61,125,255,.18)",borderColor:"#5b9dff",borderWidth:2,pointBackgroundColor:"#e6b74a",pointRadius:3}]},
+    options:{responsive:true,plugins:{legend:{display:false}},scales:{r:{min:0,max:100,ticks:{display:false,stepSize:25},grid:{color:"#243049"},angleLines:{color:"#243049"},pointLabels:{color:"#8b97b3",font:{size:11,weight:"600"}}}}}});
+}
+function renderMatrix(companies){
+  const ctx=el("matrixChart"); if(!ctx)return;
+  if(matrixChart)matrixChart.destroy();
+  const pts=companies.map(c=>({x:c.o.scores.valuacion.score,y:c.o.scores.calidad.score,label:c.label,bg:c.color}));
+  const quad={id:"quad",beforeDraw(ch){const{ctx,chartArea:a,scales}=ch;if(!a)return;const mx=scales.x.getPixelForValue(50),my=scales.y.getPixelForValue(50);
+    ctx.save();ctx.fillStyle="rgba(46,204,143,.06)";ctx.fillRect(mx,a.top,a.right-mx,my-a.top);
+    ctx.fillStyle="rgba(245,166,35,.05)";ctx.fillRect(a.left,a.top,mx-a.left,my-a.top);
+    ctx.fillStyle="rgba(245,166,35,.05)";ctx.fillRect(mx,my,a.right-mx,a.bottom-my);
+    ctx.fillStyle="rgba(242,84,91,.05)";ctx.fillRect(a.left,my,mx-a.left,a.bottom-my);
+    ctx.strokeStyle="#2e3c5a";ctx.beginPath();ctx.moveTo(mx,a.top);ctx.lineTo(mx,a.bottom);ctx.moveTo(a.left,my);ctx.lineTo(a.right,my);ctx.stroke();
+    ctx.fillStyle="#5f6b8a";ctx.font="10px Segoe UI";
+    ctx.fillText("Oportunidad potencial",mx+8,a.top+14);
+    ctx.fillText("Gran empresa, precio exigente",a.left+6,a.top+14);
+    ctx.fillText("Posible trampa de valor",mx+8,a.bottom-8);
+    ctx.fillText("Evitar salvo cambio",a.left+6,a.bottom-8);ctx.restore();}};
+  matrixChart=new Chart(ctx,{type:"scatter",data:{datasets:pts.map(p=>({label:p.label,data:[{x:p.x,y:p.y}],backgroundColor:p.bg,pointRadius:9,pointHoverRadius:11,borderColor:"#fff",borderWidth:2}))},
+    options:{responsive:true,plugins:{legend:{labels:{color:"#8b97b3"}},tooltip:{callbacks:{label:c=>`${c.dataset.label}: calidad ${Math.round(c.parsed.y)}, valuación ${Math.round(c.parsed.x)}`}}},
+    scales:{x:{min:0,max:100,title:{display:true,text:"Atractivo de valuación →",color:"#8b97b3"},grid:{color:"#1a2338"},ticks:{color:"#5f6b8a"}},y:{min:0,max:100,title:{display:true,text:"Calidad del negocio →",color:"#8b97b3"},grid:{color:"#1a2338"},ticks:{color:"#5f6b8a"}}},plugins2:[]},plugins:[quad]});
+}
+function quadrantOf(o){
+  const q=o.scores.calidad.score>=55, v=o.scores.valuacion.score>=55;
+  if(q&&v)return{t:"Oportunidad potencial",d:"Alta calidad + valuación atractiva.",col:"var(--green2)"};
+  if(q&&!v)return{t:"Gran empresa, precio exigente",d:"Alta calidad + valuación exigente.",col:"var(--gold2)"};
+  if(!q&&v)return{t:"Posible trampa de valor",d:"Baja calidad + valuación atractiva.",col:"var(--amber)"};
+  return{t:"Evitar salvo cambio de fundamentals",d:"Baja calidad + valuación exigente.",col:"#ff8085"};
+}
+function renderQuadrant(o){
+  const q=quadrantOf(o);
+  el("quadrantBox").innerHTML=`<div style="text-align:center;padding:18px 8px"><div class="moat-badge" style="background:${q.col}22;color:${q.col};font-size:17px">${esc(q.t)}</div><p style="color:var(--muted);margin-top:12px">${esc(q.d)}</p><div style="display:flex;justify-content:center;gap:24px;margin-top:16px"><div><div style="font-size:12px;color:var(--muted2)">CALIDAD</div><div style="font-size:26px;font-weight:800;color:${scoreColor(o.scores.calidad.score)}">${o.scores.calidad.score}</div></div><div><div style="font-size:12px;color:var(--muted2)">VALUACIÓN</div><div style="font-size:26px;font-weight:800;color:${scoreColor(o.scores.valuacion.score)}">${o.scores.valuacion.score}</div></div></div></div>`;
+}
+
+/* ============================================================
+   FLUJO PRINCIPAL, EVENTOS Y NAVEGACIÓN
+   ============================================================ */
+function showStatus(id,msg,type){const s=el(id);s.className=`status show ${type}`;s.innerHTML=msg;}
+function hideStatus(id){el(id).className="status";}
+
+// tabs
+document.querySelectorAll("#mainTabs .tab").forEach(t=>t.addEventListener("click",()=>{
+  document.querySelectorAll("#mainTabs .tab").forEach(x=>x.classList.remove("active"));
+  t.classList.add("active");
+  ["analysis","battle","watchlist"].forEach(v=>el("view-"+v).classList.add("hidden"));
+  el("view-"+t.dataset.view).classList.remove("hidden");
+  if(t.dataset.view==="watchlist")renderWatchlist();
+}));
+
+// analyze
+async function runAnalysis(){
+  const ticker=el("tickerInput").value.trim().toUpperCase();
+  if(!ticker){showStatus("status","Ingresá un ticker (ej. AAPL).","err");return;}
+  if(ticker==="NOVA"){hideStatus("status");renderDashboard(computeScores(demoCompany()));return;}
+  if(ticker==="LEGACY"){hideStatus("status");renderDashboard(computeScores(demoLegacy()));return;}
+  const btn=el("btnAnalyze");btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Analizando…';
+  showStatus("status",`Obteniendo datos de <b>${esc(ticker)}</b> desde el servidor…`,"info");
+  try{
+    let o=await fetchFMP(ticker);
+    o=computeScores(o);
+    if(o.endpointErrors&&o.endpointErrors.length)showStatus("status",`Análisis listo. Algunos endpoints no respondieron (${esc(o.endpointErrors.join(", "))}); esos datos figuran como N/D.`,"warn");
+    else hideStatus("status");
+    renderDashboard(o);
+  }catch(e){
+    let m=String(e.message||e);
+    if(m==="NO_BACKEND"){
+      showStatus("status","⚠ No hay backend disponible. Esta es la <b>versión producto</b>: <b>Analizar</b> con datos reales sólo funciona con la app desplegada en Vercel o corriendo con <b>vercel dev</b>. Para probar ahora usá <b>Modo demo</b> o <b>Carga manual</b> (tickers demo: <b>NOVA</b>, <b>LEGACY</b>).","warn");
+    }else{
+      if(/Failed to fetch|NetworkError/i.test(m))m="No se pudo conectar con el servidor. Reintentá, o usá Modo demo / Carga manual.";
+      else if(/429/.test(m))m="Límite de la API alcanzado (429). Esperá un momento e intentá de nuevo.";
+      else if(/FMP_API_KEY/i.test(m))m="El servidor no tiene configurada la variable FMP_API_KEY. Revisá el deploy en Vercel.";
+      showStatus("status","⚠ "+esc(m),"err");
+    }
+  }finally{btn.disabled=false;btn.innerHTML="🔍 Analizar";}
+}
+el("btnAnalyze").addEventListener("click",runAnalysis);
+el("tickerInput").addEventListener("keydown",e=>{if(e.key==="Enter")runAnalysis();});
+el("btnDemo").addEventListener("click",()=>{el("tickerInput").value="NOVA";hideStatus("status");renderDashboard(computeScores(demoCompany()));});
+el("btnClear").addEventListener("click",()=>{el("dashboard").classList.add("hidden");el("dashboard").innerHTML="";el("tickerInput").value="";hideStatus("status");CURRENT=null;});
+
+/* ---------- CARGA / EDICIÓN MANUAL ---------- */
+const MANUAL_FIELDS=[
+  ["companyName","Nombre empresa","text"],["ticker","Ticker","text"],["sector","Sector","text"],["industry","Industria","text"],
+  ["exchange","Exchange","text"],["currency","Moneda","text"],["price","Precio","n"],["marketCap","Market cap","n"],
+  ["enterpriseValue","Enterprise value","n"],["revenue","Ingresos","n"],["revenueGrowth","Crec. ingresos (0.15=15%)","n"],
+  ["revenueCAGR5","CAGR 5a ingresos","n"],["grossMargin","Margen bruto (0.40)","n"],["operatingMargin","Margen operativo","n"],
+  ["netMargin","Margen neto","n"],["ebitda","EBITDA","n"],["netIncome","Utilidad neta","n"],["eps","EPS","n"],
+  ["epsGrowth","Crec. EPS","n"],["cashAndEquivalents","Caja","n"],["totalDebt","Deuda total","n"],["netDebt","Deuda neta","n"],
+  ["totalEquity","Patrimonio neto","n"],["operatingCashFlow","Cash flow operativo","n"],["capex","Capex (negativo)","n"],
+  ["freeCashFlow","Free cash flow","n"],["roe","ROE (0.20)","n"],["roa","ROA","n"],["roic","ROIC (0.20)","n"],
+  ["debtToEquity","Deuda/Equity","n"],["netDebtToEbitda","Deuda neta/EBITDA","n"],["peRatio","P/E","n"],
+  ["evToEbitda","EV/EBITDA","n"],["evToSales","EV/Ventas","n"],["fcfYield","FCF yield (0.05)","n"],["beta","Beta","n"],
+  ["description","Descripción","text"]
+];
+function openManual(prefill){
+  const src=prefill||CURRENT||{currency:"USD",source:"Carga manual"};
+  el("manualForm").innerHTML=MANUAL_FIELDS.map(([k,lbl,t])=>{
+    const v=src&&src[k]!=null?src[k]:"";
+    return `<div class="field"><label>${esc(lbl)}</label><input class="inp" data-k="${k}" value="${esc(v)}" placeholder="N/D"></div>`;
+  }).join("");
+  el("manualModal").classList.add("show");
+}
+el("btnManual").addEventListener("click",()=>openManual(el("tickerInput").value?Object.assign({},CURRENT,{ticker:el("tickerInput").value.toUpperCase()}):null));
+el("btnManualCancel").addEventListener("click",()=>el("manualModal").classList.remove("show"));
+el("btnManualSave").addEventListener("click",()=>{
+  const raw={source:"Carga manual"};
+  el("manualForm").querySelectorAll("input").forEach(i=>{raw[i.dataset.k]=i.value.trim()===""?null:i.value.trim();});
+  if(!raw.ticker)raw.ticker=el("tickerInput").value.toUpperCase()||"N/D";
+  if(!raw.currency)raw.currency="USD";
+  if(!raw.companyName)raw.companyName=raw.ticker;
+  let o=computeScores(normalizeManual(raw));
+  el("manualModal").classList.remove("show");
+  el("tickerInput").value=o.ticker;hideStatus("status");
+  renderDashboard(o);
+});
+
+/* ---------- WIRING DEL DASHBOARD ---------- */
+function wireDashboard(o,thesis){
+  document.querySelectorAll(".tt").forEach(t=>t.addEventListener("click",()=>{
+    document.querySelectorAll(".tt").forEach(x=>x.classList.remove("active"));t.classList.add("active");
+    el("thesisBody").textContent=thesis[t.dataset.th];
+  }));
+  el("btnCopyThesis").addEventListener("click",()=>{copyText(el("thesisBody").textContent,el("btnCopyThesis"));});
+  el("btnCopyLinkedin").addEventListener("click",()=>{copyText(thesis.linkedin,el("btnCopyLinkedin"));});
+  el("btnEditData").addEventListener("click",()=>openManual(o));
+  el("btnSaveWatch").addEventListener("click",()=>{saveToWatchlist(o);flash(el("btnSaveWatch"),"⭐ Guardada");});
+  el("btnPlaca").addEventListener("click",()=>openPlaca(o));
+  el("btnPDF").addEventListener("click",()=>exportPDF(o));
+  el("btnExcel").addEventListener("click",()=>exportExcel(o));
+}
+function copyText(txt,btn){navigator.clipboard.writeText(txt).then(()=>flash(btn,"✓ Copiado")).catch(()=>{const ta=document.createElement("textarea");ta.value=txt;document.body.appendChild(ta);ta.select();document.execCommand("copy");ta.remove();flash(btn,"✓ Copiado");});}
+function flash(btn,msg){const o=btn.innerHTML;btn.innerHTML=msg;setTimeout(()=>btn.innerHTML=o,1400);}
+
+/* ============================================================
+   PLACA PARA LINKEDIN (PNG)
+   ============================================================ */
+function openPlaca(o){
+  const t=o._thesis||buildThesis(o);
+  el("placa").innerHTML=`
+    <div class="placa-brand"><div class="placa-logo">M</div><div><div style="font-weight:800;font-size:18px">Moat Scanner</div><div style="color:#8b97b3;font-size:12px">Descalzi Finanzas · Análisis fundamental</div></div></div>
+    <div style="margin-top:18px;position:relative"><div style="font-size:26px;font-weight:800">${esc(o.companyName)}</div><div style="color:#8b97b3;font-size:14px">${esc(o.ticker)} · ${esc(o.sector||"")}</div></div>
+    <div class="placa-score"><div class="placa-num">${o.totalScore}</div><div><div style="font-size:13px;color:#8b97b3">SCORE GENERAL / 100</div><div style="font-weight:700;color:${o.classif.col};font-size:15px;margin-top:2px">${esc(o.classif.t)}</div></div></div>
+    <div class="placa-row"><span>Moat</span><b style="color:#f5cd63">${esc(o.moat.t)}</b></div>
+    <div class="placa-row"><span>Mayor fortaleza</span><b style="color:#39e6a0">${esc(cap(t.sp.label))}</b></div>
+    <div class="placa-row"><span>Mayor riesgo</span><b style="color:#ff8085">${esc(cap(t.wp.label))}</b></div>
+    <div class="placa-row"><span>Precio · Market cap</span><b>${formatCurrency(o.price,o.currency)} · ${fmtBig(o.marketCap,o.currency)}</b></div>
+    <div class="placa-row" style="border-bottom:none"><span>Conclusión</span><b style="color:#5b9dff">${esc(t.concl)}</b></div>
+    <div style="margin-top:16px;font-size:11px;color:#5f6b8a;position:relative">Análisis educativo, no recomendación de inversión.</div>`;
+  el("placaModal").classList.add("show");
+}
+function cap(s){return s?s.charAt(0).toUpperCase()+s.slice(1):s;}
+el("btnPlacaClose").addEventListener("click",()=>el("placaModal").classList.remove("show"));
+el("btnPlacaDownload").addEventListener("click",()=>{
+  const btn=el("btnPlacaDownload");btn.innerHTML='<span class="spinner"></span> Generando…';
+  html2canvas(el("placa"),{backgroundColor:null,scale:2}).then(canvas=>{
+    const a=document.createElement("a");a.download=`MoatScanner_${CURRENT?CURRENT.ticker:"placa"}.png`;a.href=canvas.toDataURL("image/png");a.click();
+    btn.innerHTML="⬇ Descargar PNG";
+  }).catch(()=>{btn.innerHTML="⬇ Descargar PNG";alert("No se pudo generar la imagen.");});
+});
+
+/* ============================================================
+   WATCHLIST (localStorage)
+   ============================================================ */
+const WKEY="moatscanner_watchlist_v1";
+function getWatch(){try{return JSON.parse(localStorage.getItem(WKEY)||"[]");}catch(e){return[];}}
+function setWatch(a){try{localStorage.setItem(WKEY,JSON.stringify(a));}catch(e){}}
+function saveToWatchlist(o){
+  const list=getWatch();
+  const row={ticker:o.ticker,companyName:o.companyName,total:o.totalScore,moat:o.moat.t,
+    calidad:o.scores.calidad.score,valuacion:o.scores.valuacion.score,riesgo:o.scores.riesgo.score,
+    classif:o.classif.t,date:new Date().toLocaleDateString("es-AR"),snapshot:o};
+  const i=list.findIndex(x=>x.ticker===o.ticker);
+  if(i>=0)list[i]=row;else list.push(row);
+  setWatch(list);
+}
+function renderWatchlist(){
+  const list=getWatch();const box=el("watchTable");
+  if(!list.length){box.innerHTML='<div class="watch-empty">Todavía no guardaste empresas. Analizá una y tocá <b>⭐ Guardar en watchlist</b>.</div>';return;}
+  box.innerHTML=`<div class="card" style="overflow-x:auto"><table class="tbl"><thead><tr><th></th><th>Ticker</th><th>Empresa</th><th>Score</th><th>Moat</th><th>Calidad</th><th>Valuación</th><th>Riesgo</th><th>Conclusión</th><th>Fecha</th><th></th></tr></thead><tbody>
+  ${list.map((r,idx)=>`<tr>
+    <td><input type="checkbox" class="cbx watch-cbx" data-i="${idx}"></td>
+    <td><b>${esc(r.ticker)}</b></td><td>${esc(r.companyName)}</td>
+    <td class="num" style="color:${scoreColor(r.total)}"><b>${r.total}</b></td>
+    <td>${esc(r.moat)}</td>
+    <td class="num" style="color:${scoreColor(r.calidad)}">${r.calidad}</td>
+    <td class="num" style="color:${scoreColor(r.valuacion)}">${r.valuacion}</td>
+    <td class="num" style="color:${scoreColor(r.riesgo)}">${r.riesgo}</td>
+    <td style="font-size:12px">${esc(r.classif)}</td><td>${esc(r.date)}</td>
+    <td><button class="btn btn-ghost" style="padding:5px 10px" data-open="${idx}">Ver</button> <button class="btn btn-ghost" style="padding:5px 10px" data-del="${idx}">✕</button></td>
+  </tr>`).join("")}</tbody></table></div>`;
+  box.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{const l=getWatch();l.splice(+b.dataset.del,1);setWatch(l);renderWatchlist();}));
+  box.querySelectorAll("[data-open]").forEach(b=>b.addEventListener("click",()=>{
+    const r=getWatch()[+b.dataset.open];if(r&&r.snapshot){document.querySelector('#mainTabs .tab[data-view="analysis"]').click();renderDashboard(computeScores(normalizeManual(r.snapshot)));}
+  }));
+}
+el("btnWatchClear").addEventListener("click",()=>{if(confirm("¿Vaciar la watchlist?")){setWatch([]);renderWatchlist();}});
+el("btnWatchExcel").addEventListener("click",()=>exportWatchlistExcel());
+el("btnWatchCompare").addEventListener("click",()=>{
+  const sel=[...document.querySelectorAll(".watch-cbx:checked")].map(c=>getWatch()[+c.dataset.i]);
+  if(sel.length!==2){alert("Seleccioná exactamente dos empresas para comparar.");return;}
+  document.querySelector('#mainTabs .tab[data-view="battle"]').click();
+  el("battleA").value=sel[0].ticker;el("battleB").value=sel[1].ticker;
+  runBattleWith(computeScores(normalizeManual(sel[0].snapshot)),computeScores(normalizeManual(sel[1].snapshot)));
+});
+
+/* ============================================================
+   MOAT BATTLE
+   ============================================================ */
+async function loadCompany(ticker,key){
+  ticker=ticker.trim().toUpperCase();
+  if(ticker==="NOVA")return computeScores(demoCompany());
+  if(ticker==="LEGACY")return computeScores(demoLegacy());
+  return computeScores(await fetchFMP(ticker));
+}
+el("btnBattleDemo").addEventListener("click",()=>{el("battleA").value="NOVA";el("battleB").value="LEGACY";runBattleWith(computeScores(demoCompany()),computeScores(demoLegacy()));});
+el("btnBattle").addEventListener("click",async()=>{
+  const a=el("battleA").value,b=el("battleB").value,key=el("apiKeyInput").value.trim();
+  if(!a||!b){showStatus("battleStatus","Ingresá dos tickers.","err");return;}
+  const btn=el("btnBattle");btn.disabled=true;btn.innerHTML='<span class="spinner"></span> Comparando…';
+  showStatus("battleStatus",`Cargando ${esc(a)} y ${esc(b)}…`,"info");
+  try{
+    const[ca,cb]=await Promise.all([loadCompany(a,key),loadCompany(b,key)]);
+    hideStatus("battleStatus");runBattleWith(ca,cb);
+  }catch(e){
+    if(String(e.message)==="NO_BACKEND")showStatus("battleStatus","⚠ Sin backend: comparar tickers reales requiere la app desplegada o <b>vercel dev</b>. Probá con los tickers demo <b>NOVA</b> y <b>LEGACY</b>.","warn");
+    else showStatus("battleStatus","⚠ "+esc(e.message||e),"err");
+  }
+  finally{btn.disabled=false;btn.innerHTML="⚔ Comparar";}
+});
+
+const BATTLE_ROWS=[
+  {k:"Score general",g:o=>o.totalScore,f:v=>formatNumber(v),hi:true},
+  {k:"Calidad",g:o=>o.scores.calidad.score,f:v=>formatNumber(v),hi:true},
+  {k:"Crecimiento",g:o=>o.scores.crecimiento.score,f:v=>formatNumber(v),hi:true},
+  {k:"Rentabilidad",g:o=>o.scores.rentabilidad.score,f:v=>formatNumber(v),hi:true},
+  {k:"Balance",g:o=>o.scores.balance.score,f:v=>formatNumber(v),hi:true},
+  {k:"Valuación",g:o=>o.scores.valuacion.score,f:v=>formatNumber(v),hi:true},
+  {k:"Menor riesgo",g:o=>o.scores.riesgo.score,f:v=>formatNumber(v),hi:true},
+  {k:"Moat",g:o=>o.moatScore,f:v=>formatNumber(v),hi:true},
+  {k:"Margen neto",g:o=>asPct(o.netMargin),f:v=>formatPercent(v,true),hi:true},
+  {k:"ROIC",g:o=>asPct(o.roic),f:v=>formatPercent(v,true),hi:true},
+  {k:"FCF",g:o=>o.freeCashFlow,f:(v,o)=>fmtBig(v,o.currency),hi:true},
+  {k:"Deuda neta/EBITDA",g:o=>o.netDebtToEbitda,f:v=>v==null?"N/D":formatNumber(v)+"x",hi:false},
+  {k:"P/E",g:o=>o.peRatio,f:v=>formatNumber(v),hi:false},
+  {k:"EV/EBITDA",g:o=>o.evToEbitda,f:v=>formatNumber(v),hi:false},
+  {k:"FCF yield",g:o=>asPct(o.fcfYield),f:v=>formatPercent(v,true),hi:true}
+];
+function winner(a,b,higher){if(a==null&&b==null)return 0;if(a==null)return 2;if(b==null)return 1;if(a===b)return 0;return higher?(a>b?1:2):(a<b?1:2);}
+function runBattleWith(ca,cb){
+  const cats=[
+    {k:"Calidad",g:o=>o.scores.calidad.score},{k:"Crecimiento",g:o=>o.scores.crecimiento.score},
+    {k:"Rentabilidad",g:o=>o.scores.rentabilidad.score},{k:"Balance",g:o=>o.scores.balance.score},
+    {k:"Valuación",g:o=>o.scores.valuacion.score},{k:"Menor riesgo",g:o=>o.scores.riesgo.score}
+  ];
+  const wins={a:0,b:0};
+  const catWinners=cats.map(c=>{const w=winner(c.g(ca),c.g(cb),true);if(w===1)wins.a++;if(w===2)wins.b++;return{cat:c.k,w};});
+  const overall=winner(ca.totalScore,cb.totalScore,true);
+  const phrase=(o,win)=>win?"mejor perfil fundamental":o.scores.valuacion.score<45?"valuación exigente":"requiere seguimiento";
+  let html=`
+  <div class="section">
+    <div class="battle-grid">
+      <div class="battle-head"><div class="tk">${esc(ca.ticker)}</div><div style="font-size:12px;color:var(--muted)">${esc(ca.companyName)}</div><div class="moat-badge" style="background:${ca.classif.bg};color:${ca.classif.col};font-size:12px;margin-top:4px">${ca.totalScore}/100</div></div>
+      <div class="vs">VS</div>
+      <div class="battle-head"><div class="tk">${esc(cb.ticker)}</div><div style="font-size:12px;color:var(--muted)">${esc(cb.companyName)}</div><div class="moat-badge" style="background:${cb.classif.bg};color:${cb.classif.col};font-size:12px;margin-top:4px">${cb.totalScore}/100</div></div>
+    </div>
+  </div>
+  <div class="section grid" style="grid-template-columns:1fr 1fr">
+    <div class="card"><h3>Radar comparativo</h3><canvas id="battleRadar" height="260"></canvas></div>
+    <div class="card"><h3>Ganadores por categoría</h3>
+      <table class="tbl"><tbody>
+      ${catWinners.map(c=>`<tr><td>${esc(c.cat)}</td><td class="num" style="color:${c.w===1?'var(--green2)':'var(--muted)'}">${c.w===1?'▲ '+esc(ca.ticker):''}</td><td class="num" style="color:${c.w===2?'var(--green2)':'var(--muted)'}">${c.w===2?'▲ '+esc(cb.ticker):''}</td></tr>`).join("")}
+      <tr style="border-top:2px solid var(--line2)"><td><b>Ganador general</b></td><td class="num" style="color:${overall===1?'var(--green2)':'var(--muted)'}"><b>${overall===1?'🏆 '+esc(ca.ticker):''}</b></td><td class="num" style="color:${overall===2?'var(--green2)':'var(--muted)'}"><b>${overall===2?'🏆 '+esc(cb.ticker):''}</b></td></tr>
+      </tbody></table>
+      <p style="font-size:12.5px;color:var(--muted);margin-top:12px">${esc(ca.ticker)}: ${esc(phrase(ca,overall===1))}. ${esc(cb.ticker)}: ${esc(phrase(cb,overall===2))}.</p>
+    </div>
+  </div>
+  <div class="section"><div class="section-title"><span class="bar"></span>Comparación detallada</div>
+    <div class="card" style="overflow-x:auto"><table class="tbl"><thead><tr><th>Métrica</th><th style="text-align:right">${esc(ca.ticker)}</th><th style="text-align:right">${esc(cb.ticker)}</th><th>Mejor</th></tr></thead><tbody>
+    ${BATTLE_ROWS.map(r=>{const va=r.g(ca),vb=r.g(cb);const w=winner(va,vb,r.hi);return `<tr><td>${esc(r.k)}</td><td class="num ${w===1?'':''}" style="${w===1?'color:var(--green2);font-weight:800':''}">${r.f(va,ca)}</td><td class="num" style="${w===2?'color:var(--green2);font-weight:800':''}">${r.f(vb,cb)}</td><td>${w===0?'—':'<b style="color:var(--green2)">'+esc(w===1?ca.ticker:cb.ticker)+'</b>'}</td></tr>`}).join("")}
+    </tbody></table></div>
+  </div>
+  <div class="section grid" style="grid-template-columns:1fr 1fr">
+    <div class="card"><h3>Quality vs Valuation Matrix</h3><canvas id="matrixChart" height="300"></canvas></div>
+    <div class="card"><h3>Lectura rápida</h3>
+      <p style="color:var(--muted);font-size:14px;line-height:1.7">Comparación de dos negocios según su perfil fundamental. ${esc(ca.ticker)} muestra ${wins.a>=wins.b?'un mejor':'un menor'} balance de fortalezas por categoría frente a ${esc(cb.ticker)} (${wins.a} vs ${wins.b} categorías). Usá la matriz para ubicar cada empresa entre calidad y valuación.</p>
+      <div class="disclaimer" style="margin-top:14px">${DISCLAIMER}</div>
+    </div>
+  </div>`;
+  const res=el("battleResult");res.innerHTML=html;res.classList.remove("hidden");
+  // radar
+  const rc=el("battleRadar");
+  if(battleRadar)battleRadar.destroy();
+  const dv=o=>[o.scores.calidad.score,o.scores.crecimiento.score,o.scores.rentabilidad.score,o.scores.balance.score,o.scores.valuacion.score,o.scores.riesgo.score,o.moatScore];
+  battleRadar=new Chart(rc,{type:"radar",data:{labels:["Calidad","Crecimiento","Rentabilidad","Balance","Valuación","Riesgo","Moat"],
+    datasets:[{label:ca.ticker,data:dv(ca),backgroundColor:"rgba(61,125,255,.18)",borderColor:"#5b9dff",borderWidth:2,pointRadius:2},
+              {label:cb.ticker,data:dv(cb),backgroundColor:"rgba(230,183,74,.15)",borderColor:"#f5cd63",borderWidth:2,pointRadius:2}]},
+    options:{responsive:true,plugins:{legend:{labels:{color:"#8b97b3"}}},scales:{r:{min:0,max:100,ticks:{display:false},grid:{color:"#243049"},angleLines:{color:"#243049"},pointLabels:{color:"#8b97b3",font:{size:11}}}}}});
+  renderMatrix([{o:ca,color:"#5b9dff",label:ca.ticker},{o:cb,color:"#f5cd63",label:cb.ticker}]);
+  res.scrollIntoView({behavior:"smooth",block:"start"});
+}
+
+/* ============================================================
+   EXPORTACIÓN PDF (jsPDF)
+   ============================================================ */
+function exportPDF(o){
+  const btn=el("btnPDF");btn.innerHTML='<span class="spinner"></span> PDF…';
+  try{
+    const{jsPDF}=window.jspdf;const doc=new jsPDF({unit:"pt",format:"a4"});
+    const W=doc.internal.pageSize.getWidth(),H=doc.internal.pageSize.getHeight(),M=40;let y=0;
+    const cur=o.currency||"USD";const t=o._thesis||buildThesis(o);
+    const NAVY=[15,39,72],BLUE=[61,125,255],GREEN=[46,204,143],AMBER=[245,166,35],RED=[242,84,91],GRAY=[120,132,158],DARK=[30,40,60];
+    function ensure(h){if(y+h>H-46){footer();doc.addPage();y=M;}}
+    function footer(){doc.setFontSize(7.5);doc.setTextColor(150);doc.text("Descalzi Finanzas · Moat Scanner — material educativo, no constituye recomendación de inversión.",M,H-24);doc.text(String(doc.internal.getNumberOfPages()),W-M,H-24,{align:"right"});}
+    function h1(txt){ensure(30);doc.setFillColor(...NAVY);doc.rect(M,y,W-2*M,26,"F");doc.setFontSize(12);doc.setTextColor(255);doc.setFont(undefined,"bold");doc.text(txt,M+10,y+17);y+=26;doc.setFont(undefined,"normal");}
+    function para(txt,size=9.5,color=DARK){doc.setFontSize(size);doc.setTextColor(...color);const lines=doc.splitTextToSize(txt,W-2*M-4);lines.forEach(l=>{ensure(size+3);doc.text(l,M+2,y+size);y+=size+3;});y+=3;}
+    function kv(rows){doc.setFontSize(9.5);rows.forEach(([k,v])=>{ensure(15);doc.setTextColor(...GRAY);doc.text(String(k),M+4,y+10);doc.setTextColor(...DARK);doc.setFont(undefined,"bold");doc.text(String(v),W/2,y+10);doc.setFont(undefined,"normal");y+=15;});y+=4;}
+    function tableRow(cols,widths,opts={}){const h=opts.h||16;ensure(h);let x=M;if(opts.fill){doc.setFillColor(...opts.fill);doc.rect(M,y,W-2*M,h,"F");}
+      doc.setFontSize(opts.size||8.5);cols.forEach((c,i)=>{doc.setTextColor(...(opts.colors&&opts.colors[i]?opts.colors[i]:(opts.head?[255,255,255]:DARK)));doc.setFont(undefined,opts.head?"bold":(opts.bold&&opts.bold[i]?"bold":"normal"));const align=opts.align&&opts.align[i]||"left";const tx=align==="right"?x+widths[i]-4:x+4;doc.text(String(c),tx,y+h-5,{align});x+=widths[i];});doc.setFont(undefined,"normal");y+=h;}
+
+    // COVER
+    doc.setFillColor(...NAVY);doc.rect(0,0,W,150,"F");
+    doc.setFillColor(...BLUE);doc.roundedRect(M,40,40,40,8,8,"F");doc.setTextColor(255);doc.setFontSize(22);doc.setFont(undefined,"bold");doc.text("M",M+13,68);
+    doc.setFontSize(20);doc.text("Moat Scanner",M+56,60);doc.setFontSize(10);doc.setFont(undefined,"normal");doc.text("Análisis fundamental visual · Descalzi Finanzas",M+56,78);
+    y=175;doc.setTextColor(...DARK);doc.setFontSize(22);doc.setFont(undefined,"bold");doc.text(`${o.companyName} (${o.ticker})`,M,y);y+=8;
+    doc.setFontSize(10);doc.setFont(undefined,"normal");doc.setTextColor(...GRAY);y+=14;doc.text(`${o.sector||"N/D"} · ${o.industry||"N/D"} · ${o.exchange||"N/D"}`,M,y);y+=10;
+    // score badge
+    y+=14;const sc=o.totalScore;const sccol=sc>=70?GREEN:sc>=55?[214,171,54]:sc>=40?AMBER:RED;
+    doc.setFillColor(...sccol);doc.roundedRect(M,y,120,60,8,8,"F");doc.setTextColor(255);doc.setFontSize(30);doc.setFont(undefined,"bold");doc.text(String(sc),M+18,y+42);doc.setFontSize(9);doc.text("/100",M+62,y+42);
+    doc.setTextColor(...DARK);doc.setFontSize(11);doc.setFont(undefined,"bold");doc.text(o.classif.t,M+134,y+26,{maxWidth:W-M-160});doc.setFont(undefined,"normal");doc.setFontSize(10);doc.setTextColor(...GRAY);doc.text("Moat: "+o.moat.t,M+134,y+46);
+    y+=80;
+    doc.setDrawColor(220);doc.setFillColor(245,247,250);doc.roundedRect(M,y,W-2*M,54,6,6,"F");doc.setFontSize(8);doc.setTextColor(...GRAY);doc.text(doc.splitTextToSize("Advertencia profesional: "+DISCLAIMER,W-2*M-16),M+8,y+14);
+    y+=66;doc.setFontSize(8);doc.setTextColor(...GRAY);doc.text(`Generado: ${new Date().toLocaleString("es-AR")} · Fuente: ${o.source}`,M,y);
+    footer();doc.addPage();y=M;
+
+    // DATOS GENERALES
+    h1("Datos generales");
+    kv([["Empresa",o.companyName],["Ticker",o.ticker],["Sector",o.sector||"N/D"],["Industria",o.industry||"N/D"],
+      ["Precio",formatCurrency(o.price,cur)],["Market cap",fmtBig(o.marketCap,cur)],["Enterprise value",fmtBig(o.enterpriseValue,cur)]]);
+    // SCORES
+    h1("Score general y por categoría");
+    tableRow(["Categoría","Peso","Score","Comentario"],[110,50,50,W-2*M-210],{head:true,fill:NAVY,align:["left","right","right","left"]});
+    Object.keys(SCORE_LABELS).forEach((k,i)=>{const s=o.scores[k];tableRow([SCORE_LABELS[k],Math.round(WEIGHTS[k]*100)+"%",String(s.score),s.comment.slice(0,80)],[110,50,50,W-2*M-210],{fill:i%2?[240,243,248]:[255,255,255],align:["left","right","right","left"]});});
+    tableRow(["SCORE FINAL","100%",String(o.totalScore),o.classif.t],[110,50,50,W-2*M-210],{fill:[225,235,255],bold:[true,false,true,true],align:["left","right","right","left"]});
+    // KPIs
+    h1("KPIs financieros");
+    const kp=[["Ingresos",fmtBig(o.revenue,cur)],["Crecimiento ingresos",formatPercent(asPct(o.revenueCAGR5!=null?o.revenueCAGR5:o.revenueGrowth),true)],["Margen bruto",formatPercent(asPct(o.grossMargin),true)],["Margen operativo",formatPercent(asPct(o.operatingMargin),true)],["Margen neto",formatPercent(asPct(o.netMargin),true)],["ROE",formatPercent(asPct(o.roe),true)],["ROIC",formatPercent(asPct(o.roic),true)],["Deuda neta/EBITDA",o.netDebtToEbitda==null?"N/D":formatNumber(o.netDebtToEbitda)+"x"],["P/E",formatNumber(o.peRatio)],["EV/EBITDA",formatNumber(o.evToEbitda)],["FCF yield",formatPercent(asPct(o.fcfYield),true)],["Free cash flow",fmtBig(o.freeCashFlow,cur)]];
+    kp.forEach(([k,v],i)=>tableRow([k,v],[W/2-M,W/2-M],{fill:i%2?[240,243,248]:[255,255,255],align:["left","right"]}));
+    // MOAT
+    h1("Moat Analysis — "+o.moat.t);
+    buildMoat(o).forEach(m=>{para(`• ${m.t} (${m.on==="on"?"Presente":m.on==="mid"?"Parcial":"Débil"}): ${m.ev} Fortaleza: ${m.strength}. Riesgo: ${m.risk}`,9);});
+    // SEMAFORO
+    h1("Semáforo Buffett / Munger");
+    buildSemaforo(o).forEach(q=>{const col=q.l==="green"?GREEN:q.l==="amber"?AMBER:RED;ensure(15);doc.setFillColor(...col);doc.circle(M+6,y+7,4,"F");doc.setTextColor(...DARK);doc.setFontSize(9);doc.setFont(undefined,"bold");doc.text(q.q,M+16,y+10);doc.setFont(undefined,"normal");doc.setTextColor(...GRAY);const cl=doc.splitTextToSize(q.c,W-2*M-16);doc.text(cl,M+16,y+21);y+=15+cl.length*10;});
+    // MATRIX
+    h1("Quality vs Valuation Matrix");const q=quadrantOf(o);para(`Cuadrante: ${q.t}. ${q.d} Calidad: ${o.scores.calidad.score}/100 · Valuación: ${o.scores.valuacion.score}/100.`);
+    // RED FLAGS
+    h1("Red Flag Scanner");
+    tableRow(["Alerta","Severidad","Explicación"],[150,70,W-2*M-220],{head:true,fill:NAVY});
+    buildRedFlags(o).forEach((f,i)=>{const col=f.sev==="ok"?[221,245,234]:f.sev==="baja"||f.sev==="media"?[253,243,224]:[251,228,229];tableRow([f.name,f.sev==="ok"?"Sin alerta":f.sev.toUpperCase(),f.expl.slice(0,70)],[150,70,W-2*M-220],{fill:col});});
+    // SCENARIOS
+    const scen=buildScenarios(o);if(scen){h1("Valuación por escenarios");
+      tableRow(["Escenario","Crec.","Múlt.","Tasa","VP est.","Upside","Interpretación"],[70,44,40,40,90,54,W-2*M-338],{head:true,fill:NAVY,align:["left","right","right","right","right","right","left"]});
+      scen.forEach((s,i)=>tableRow([s.name,formatPercent(s.growth,true),formatNumber(s.exitMult)+"x",formatPercent(s.disc,true),fmtBig(s.pv,cur),(s.upside>=0?"+":"")+formatPercent(s.upside,true),s.interp.slice(0,42)],[70,44,40,40,90,54,W-2*M-338],{fill:i%2?[240,243,248]:[255,255,255],align:["left","right","right","right","right","right","left"]}));}
+    // COMMITTEE
+    h1("Investment Committee");
+    buildCommittee(o).forEach(c=>{ensure(20);doc.setFontSize(10);doc.setFont(undefined,"bold");doc.setTextColor(...NAVY);doc.text(`${c.name} — ${c.role}`,M+2,y+10);y+=13;doc.setFont(undefined,"normal");para(`Veredicto: ${c.verdict}. A favor: ${c.pro}. En contra: ${c.con}. Pregunta clave: ${c.qk}`,8.5);});
+    // THESIS
+    h1("Tesis de inversión");
+    doc.setFont(undefined,"bold");para("Versión ejecutiva",10,NAVY);doc.setFont(undefined,"normal");para(t.exec);
+    doc.setFont(undefined,"bold");para("Versión analista",10,NAVY);doc.setFont(undefined,"normal");para(t.analyst,9);
+    // NEXT EARNINGS
+    h1("Qué mirar en el próximo balance");
+    tableRow(["Punto","Import.","Detalle"],[140,55,W-2*M-195],{head:true,fill:NAVY});
+    buildNextEarnings(o).forEach((p,i)=>tableRow([p.t,p.imp.toUpperCase(),p.d.slice(0,64)],[140,55,W-2*M-195],{fill:i%2?[240,243,248]:[255,255,255]}));
+    // CONCLUSION
+    h1("Conclusión");para(t.concl+".",11,DARK);
+    footer();
+    doc.save(`MoatScanner_${o.ticker}.pdf`);
+  }catch(e){alert("Error generando PDF: "+e.message);}
+  finally{btn.innerHTML="📄 Descargar PDF";}
+}
+
+/* ============================================================
+   EXPORTACIÓN EXCEL PROFESIONAL (ExcelJS)
+   ============================================================ */
+const XL={navy:"FF0F2748",blue:"FF1E4E9E",gray:"FF2E3C5A",grayL:"FFE9EDF4",white:"FFFFFFFF",
+  green:"FFD6F3E5",greenT:"FF1E8E63",amber:"FFFCEFD2",amberT:"FFB8791A",red:"FFFAE0E2",redT:"FFC0392B",blueI:"FFE6EEFB",zebra:"FFF4F7FB"};
+function thin(){return{style:"thin",color:{argb:"FFB9C4D8"}};}
+function border(){return{top:thin(),left:thin(),bottom:thin(),right:thin()};}
+function stateFill(state){return{green:XL.green,amber:XL.amber,red:XL.red,blue:XL.blueI}[state]||XL.white;}
+function scoreState(s){return s>=70?"green":s>=55?"amber":s>=40?"amber":"red";}
+
+async function buildWorkbook(o){
+  const cur=o.currency||"USD";const t=o._thesis||buildThesis(o);
+  const wb=new ExcelJS.Workbook();wb.creator="Moat Scanner · Descalzi Finanzas";wb.created=new Date();
+  const CURFMT=`"${cur}" #,##0`;
+  function titleRow(ws,text,span){
+    const r=ws.addRow([text]);r.height=30;ws.mergeCells(r.number,1,r.number,span);
+    const c=r.getCell(1);c.fill={type:"pattern",pattern:"solid",fgColor:{argb:XL.navy}};c.font={bold:true,size:15,color:{argb:XL.white}};c.alignment={vertical:"middle",horizontal:"left",indent:1};
+    return r;
+  }
+  function subRow(ws,text,span){const r=ws.addRow([text]);ws.mergeCells(r.number,1,r.number,span);const c=r.getCell(1);c.fill={type:"pattern",pattern:"solid",fgColor:{argb:XL.grayL}};c.font={bold:true,size:11,color:{argb:XL.navy}};c.border={bottom:{style:"medium",color:{argb:XL.blue}}};r.height=20;return r;}
+  function headRow(ws,cells){const r=ws.addRow(cells);r.eachCell(c=>{c.fill={type:"pattern",pattern:"solid",fgColor:{argb:XL.navy}};c.font={bold:true,size:10,color:{argb:XL.white}};c.alignment={vertical:"middle",horizontal:"left"};c.border=border();});r.height=18;return r;}
+  function dataRow(ws,cells,opt={}){const r=ws.addRow(cells);r.eachCell((c,i)=>{c.border=border();c.font={size:10,color:{argb:"FF1E2A44"}};if(opt.zebra&&r.number%2===0)c.fill={type:"pattern",pattern:"solid",fgColor:{argb:XL.zebra}};});return r;}
+  function blank(ws){ws.addRow([]);}
+
+  /* 1 — RESUMEN EJECUTIVO */
+  const s1=wb.addWorksheet("Resumen Ejecutivo",{views:[{showGridLines:false}]});
+  s1.columns=[{width:26},{width:70}];
+  titleRow(s1,"Moat Scanner — Reporte de Análisis Fundamental",2);
+  blank(s1);
+  const sumRows=[["Empresa",o.companyName],["Ticker",o.ticker],["Fecha de análisis",new Date().toLocaleDateString("es-AR")],
+    ["Fuente de datos",o.source],["Score general",o.totalScore+" / 100"],["Clasificación final",o.classif.t],
+    ["Moat detectado",o.moat.t],["Mayor fortaleza",cap(t.sp.label)],["Mayor riesgo",cap(t.wp.label)],["Conclusión",t.concl]];
+  sumRows.forEach(([k,v],idx)=>{const r=s1.addRow([k,v]);r.getCell(1).font={bold:true,color:{argb:XL.navy},size:11};r.getCell(1).fill={type:"pattern",pattern:"solid",fgColor:{argb:XL.grayL}};r.getCell(2).font={size:11};r.getCell(1).border=border();r.getCell(2).border=border();r.height=18;
+    if(k==="Score general"){const st=scoreState(o.totalScore);r.getCell(2).fill={type:"pattern",pattern:"solid",fgColor:{argb:stateFill(st)}};r.getCell(2).font={bold:true,size:11};}
+    if(k==="Clasificación final"||k==="Conclusión"){r.getCell(2).font={bold:true,size:11,color:{argb:XL.navy}};}});
+  blank(s1);
+  const adv=s1.addRow(["Advertencia",DISCLAIMER]);adv.getCell(1).font={bold:true,color:{argb:XL.amberT}};adv.getCell(2).font={italic:true,size:9,color:{argb:"FF555F77"}};adv.getCell(2).alignment={wrapText:true};adv.height=54;s1.mergeCells(adv.number,2,adv.number,2);
+  s1.views=[{state:"frozen",ySplit:1,showGridLines:false}];
+
+  /* 2 — DATOS DE LA EMPRESA */
+  const s2=wb.addWorksheet("Datos de la Empresa");
+  s2.columns=[{width:28},{width:40}];titleRow(s2,"Datos de la Empresa",2);blank(s2);headRow(s2,["Campo","Valor"]);
+  const dd=[["Nombre",o.companyName,"t"],["Ticker",o.ticker,"t"],["Exchange",o.exchange||"N/D","t"],["País",o.country||"N/D","t"],["Sector",o.sector||"N/D","t"],["Industria",o.industry||"N/D","t"],["Moneda",cur,"t"],["Precio",o.price,"c"],["Market cap",o.marketCap,"c"],["Enterprise value",o.enterpriseValue,"c"],["Beta",o.beta,"n1"],["Descripción",(o.description||"N/D"),"t"]];
+  dd.forEach(([k,v,ty],i)=>{const r=dataRow(s2,[k,v==null?"N/D":v],{zebra:true});r.getCell(1).font={bold:true,size:10,color:{argb:XL.navy}};const c=r.getCell(2);if(v!=null&&ty==="c"){c.numFmt=CURFMT;c.alignment={horizontal:"right"};}else if(v!=null&&ty==="n1"){c.numFmt="#,##0.00";c.alignment={horizontal:"right"};}if(k==="Descripción"){c.alignment={wrapText:true,vertical:"top"};r.height=60;}});
+  s2.autoFilter="A3:B3";s2.views=[{state:"frozen",ySplit:3}];
+
+  /* 3 — SCORES */
+  const s3=wb.addWorksheet("Scores");
+  s3.columns=[{width:22},{width:10},{width:10},{width:16},{width:52}];titleRow(s3,"Scores por Categoría",5);blank(s3);
+  headRow(s3,["Categoría","Score","Peso","Score ponderado","Comentario"]);
+  Object.keys(SCORE_LABELS).forEach(k=>{const s=o.scores[k].score,w=WEIGHTS[k];const r=dataRow(s3,[SCORE_LABELS[k],s,w,Math.round(s*w),o.scores[k].comment],{zebra:true});
+    r.getCell(2).alignment={horizontal:"right"};r.getCell(2).fill={type:"pattern",pattern:"solid",fgColor:{argb:stateFill(scoreState(s))}};r.getCell(2).font={bold:true,size:10};
+    r.getCell(3).numFmt="0%";r.getCell(3).alignment={horizontal:"right"};r.getCell(4).alignment={horizontal:"right"};});
+  const moatR=dataRow(s3,["Moat",o.moatScore,"—",o.moat.t,"Clasificación cualitativa del foso competitivo"]);moatR.getCell(2).alignment={horizontal:"right"};moatR.getCell(2).fill={type:"pattern",pattern:"solid",fgColor:{argb:stateFill(scoreState(o.moatScore))}};moatR.getCell(2).font={bold:true};
+  const tot=dataRow(s3,["SCORE FINAL",o.totalScore,1,o.totalScore,o.classif.t]);tot.eachCell(c=>{c.font={bold:true,color:{argb:XL.navy}};c.fill={type:"pattern",pattern:"solid",fgColor:{argb:XL.blueI}};});tot.getCell(2).alignment={horizontal:"right"};tot.getCell(3).numFmt="0%";tot.getCell(4).alignment={horizontal:"right"};
+  s3.autoFilter="A3:E3";s3.views=[{state:"frozen",ySplit:3}];
+
+  /* 4 — KPIs FINANCIEROS */
+  const s4=wb.addWorksheet("KPIs Financieros");
+  s4.columns=[{width:26},{width:20},{width:34},{width:14}];titleRow(s4,"KPIs Financieros",4);blank(s4);headRow(s4,["KPI","Valor","Interpretación","Estado"]);
+  const g=asPct(o.revenueGrowth);
+  const kpi=[
+    ["Ingresos",o.revenue,"c","Facturación anual","blue"],
+    ["Crecimiento de ingresos",asPct(o.revenueCAGR5!=null?o.revenueCAGR5:o.revenueGrowth),"p","CAGR / interanual",g==null?"blue":g>=8?"green":g>=0?"amber":"red"],
+    ["Margen bruto",asPct(o.grossMargin),"p","Poder de fijación de precios",stExcel(asPct(o.grossMargin),40,60)],
+    ["Margen operativo",asPct(o.operatingMargin),"p","Eficiencia operativa",stExcel(asPct(o.operatingMargin),12,25)],
+    ["Margen neto",asPct(o.netMargin),"p","Rentabilidad final",stExcel(asPct(o.netMargin),10,20)],
+    ["ROE",asPct(o.roe),"p","Retorno sobre patrimonio",stExcel(asPct(o.roe),10,15)],
+    ["ROIC",asPct(o.roic),"p","Retorno sobre capital invertido",stExcel(asPct(o.roic),10,15)],
+    ["Deuda neta / EBITDA",o.netDebtToEbitda,"x","Apalancamiento",o.netDebtToEbitda==null?"blue":o.netDebtToEbitda<1.5?"green":o.netDebtToEbitda<=3?"amber":"red"],
+    ["P/E",o.peRatio,"n","Precio / ganancias",stMultX(o.peRatio,25,40)],
+    ["EV/EBITDA",o.evToEbitda,"n","Valor empresa / EBITDA",stMultX(o.evToEbitda,15,25)],
+    ["FCF yield",asPct(o.fcfYield),"p","Rendimiento de caja libre",stExcel(asPct(o.fcfYield),3,6)],
+    ["Free cash flow",o.freeCashFlow,"c","Caja libre generada",o.freeCashFlow==null?"blue":o.freeCashFlow>0?"green":"red"],
+    ["Market cap",o.marketCap,"c","Capitalización de mercado","blue"],
+    ["Enterprise value",o.enterpriseValue,"c","Valor de empresa","blue"]
+  ];
+  kpi.forEach(([k,v,ty,interp,st])=>{const disp=v==null?"N/D":v;const r=dataRow(s4,[k,disp,interp,st==="green"?"Favorable":st==="amber"?"Revisar":st==="red"?"Alerta":"Info"],{zebra:true});
+    r.getCell(1).font={bold:true,size:10,color:{argb:XL.navy}};const c=r.getCell(2);
+    if(v!=null){c.alignment={horizontal:"right"};if(ty==="c")c.numFmt=CURFMT;else if(ty==="p"){c.value=v/100;c.numFmt="0%";}else if(ty==="x"){c.numFmt='#,##0.0"x"';}else c.numFmt="#,##0";}
+    r.getCell(4).fill={type:"pattern",pattern:"solid",fgColor:{argb:stateFill(st)}};r.getCell(4).font={bold:true,size:9,color:{argb:st==="green"?XL.greenT:st==="amber"?XL.amberT:st==="red"?XL.redT:XL.blue}};r.getCell(4).alignment={horizontal:"center"};});
+  s4.autoFilter="A3:D3";s4.views=[{state:"frozen",ySplit:3}];
+
+  /* 5 — MOAT ANALYSIS */
+  const s5=wb.addWorksheet("Moat Analysis");
+  s5.columns=[{width:30},{width:44},{width:14},{width:34}];titleRow(s5,"Moat Analysis — "+o.moat.t,4);blank(s5);headRow(s5,["Tipo de moat","Evidencia","Fortaleza","Riesgo de deterioro"]);
+  buildMoat(o).forEach(m=>{const r=dataRow(s5,[m.t,m.ev,m.strength,m.risk],{zebra:true});r.getCell(1).font={bold:true,size:10,color:{argb:XL.navy}};[2,4].forEach(i=>r.getCell(i).alignment={wrapText:true,vertical:"top"});r.getCell(3).fill={type:"pattern",pattern:"solid",fgColor:{argb:m.on==="on"?XL.green:m.on==="mid"?XL.amber:XL.grayL}};r.getCell(3).alignment={horizontal:"center"};r.height=34;});
+  s5.autoFilter="A3:D3";s5.views=[{state:"frozen",ySplit:3}];
+
+  /* 6 — SEMÁFORO BUFFETT MUNGER */
+  const s6=wb.addWorksheet("Semáforo Buffett Munger");
+  s6.columns=[{width:46},{width:12},{width:54}];titleRow(s6,"Semáforo Buffett / Munger",3);blank(s6);headRow(s6,["Criterio","Estado","Comentario"]);
+  buildSemaforo(o).forEach(q=>{const r=dataRow(s6,[q.q,q.l==="green"?"Verde":q.l==="amber"?"Amarillo":"Rojo",q.c],{zebra:true});r.getCell(2).fill={type:"pattern",pattern:"solid",fgColor:{argb:q.l==="green"?XL.green:q.l==="amber"?XL.amber:XL.red}};r.getCell(2).alignment={horizontal:"center"};r.getCell(2).font={bold:true,size:9,color:{argb:q.l==="green"?XL.greenT:q.l==="amber"?XL.amberT:XL.redT}};r.getCell(3).alignment={wrapText:true};});
+  s6.autoFilter="A3:C3";s6.views=[{state:"frozen",ySplit:3}];
+
+  /* 7 — QUALITY VS VALUATION */
+  const s7=wb.addWorksheet("Quality vs Valuation");
+  s7.columns=[{width:26},{width:16},{width:52}];titleRow(s7,"Quality vs Valuation Matrix",3);blank(s7);headRow(s7,["Dimensión","Valor","Detalle"]);
+  const qd=quadrantOf(o);
+  [["Calidad del negocio",o.scores.calidad.score,"Eje vertical (0-100)"],["Atractivo de valuación",o.scores.valuacion.score,"Eje horizontal (0-100)"],["Cuadrante",qd.t,qd.d]].forEach(([k,v,d])=>{const r=dataRow(s7,[k,v,d],{zebra:true});r.getCell(1).font={bold:true,color:{argb:XL.navy}};if(typeof v==="number"){r.getCell(2).alignment={horizontal:"right"};r.getCell(2).fill={type:"pattern",pattern:"solid",fgColor:{argb:stateFill(scoreState(v))}};r.getCell(2).font={bold:true};}else{r.getCell(2).font={bold:true,color:{argb:XL.navy}};}r.getCell(3).alignment={wrapText:true};});
+  s7.views=[{state:"frozen",ySplit:3}];
+
+  /* 8 — RED FLAGS */
+  const s8=wb.addWorksheet("Red Flags");
+  s8.columns=[{width:30},{width:12},{width:40},{width:24},{width:30}];titleRow(s8,"Red Flag Scanner",5);blank(s8);headRow(s8,["Alerta","Severidad","Explicación","Dato a monitorear","Acción sugerida"]);
+  buildRedFlags(o).forEach(f=>{const st=f.sev==="ok"?"green":f.sev==="baja"?"green":f.sev==="media"?"amber":"red";const r=dataRow(s8,[f.name,f.sev==="ok"?"Sin alerta":cap(f.sev),f.expl,f.monitor,f.action],{zebra:true});r.getCell(1).font={bold:true,size:10,color:{argb:XL.navy}};r.getCell(2).fill={type:"pattern",pattern:"solid",fgColor:{argb:stateFill(st)}};r.getCell(2).font={bold:true,size:9,color:{argb:st==="green"?XL.greenT:st==="amber"?XL.amberT:XL.redT}};r.getCell(2).alignment={horizontal:"center"};r.getCell(3).alignment={wrapText:true};});
+  s8.autoFilter="A3:E3";s8.views=[{state:"frozen",ySplit:3}];
+
+  /* 9 — VALUACIÓN POR ESCENARIOS */
+  const s9=wb.addWorksheet("Valuación por Escenarios");
+  s9.columns=[{width:16},{width:14},{width:12},{width:12},{width:10},{width:22},{width:14},{width:40}];titleRow(s9,"Valuación por Escenarios",8);blank(s9);
+  headRow(s9,["Escenario","Crecimiento","Múlt. salida","Tasa desc.","Años","Valor presente est.","Upside/Down","Interpretación"]);
+  const scen=buildScenarios(o);
+  if(scen){scen.forEach(s=>{const r=dataRow(s9,[s.name,s.growth/100,s.exitMult,s.disc/100,s.years,s.pv,s.upside,s.interp],{zebra:true});
+    r.getCell(1).font={bold:true,color:{argb:XL.navy}};r.getCell(2).numFmt="0%";r.getCell(3).numFmt='#,##0"x"';r.getCell(4).numFmt="0%";r.getCell(6).numFmt=CURFMT;r.getCell(7).numFmt="+0%;-0%";
+    [2,3,4,5,6,7].forEach(i=>r.getCell(i).alignment={horizontal:"right"});r.getCell(7).fill={type:"pattern",pattern:"solid",fgColor:{argb:s.upside>=0.1?XL.green:s.upside>=-0.1?XL.amber:XL.red}};r.getCell(7).font={bold:true};r.getCell(8).alignment={wrapText:true};});
+  }else{dataRow(s9,["N/D — sin FCF positivo o market cap para modelar escenarios (requiere revisión)."]);}
+  s9.views=[{state:"frozen",ySplit:3}];
+
+  /* 10 — INVESTMENT COMMITTEE */
+  const s10=wb.addWorksheet("Investment Committee");
+  s10.columns=[{width:20},{width:34},{width:34},{width:34},{width:40}];titleRow(s10,"Investment Committee",5);blank(s10);headRow(s10,["Perfil","Veredicto","Punto a favor","Punto en contra","Pregunta clave"]);
+  buildCommittee(o).forEach(c=>{const r=dataRow(s10,[c.name,c.verdict,c.pro,c.con,c.qk],{zebra:true});r.getCell(1).font={bold:true,size:10,color:{argb:XL.navy}};[2,3,4,5].forEach(i=>r.getCell(i).alignment={wrapText:true,vertical:"top"});r.getCell(3).font={color:{argb:XL.greenT},size:9.5};r.getCell(4).font={color:{argb:XL.redT},size:9.5};r.getCell(5).font={italic:true,color:{argb:XL.amberT},size:9.5};r.height=48;});
+  s10.autoFilter="A3:E3";s10.views=[{state:"frozen",ySplit:3}];
+
+  /* 11 — TESIS DE INVERSIÓN */
+  const s11=wb.addWorksheet("Tesis de Inversión");
+  s11.columns=[{width:100}];titleRow(s11,"Tesis de Inversión",1);blank(s11);
+  [["Versión ejecutiva",t.exec],["Versión analista",t.analyst],["Versión LinkedIn",t.linkedin]].forEach(([h,body])=>{subRow(s11,h,1);const r=s11.addRow([body]);r.getCell(1).alignment={wrapText:true,vertical:"top"};r.getCell(1).font={size:10.5};r.height=Math.min(320,24+body.split("\n").length*15);blank(s11);});
+
+  /* 12 — PRÓXIMO BALANCE */
+  const s12=wb.addWorksheet("Próximo Balance");
+  s12.columns=[{width:34},{width:14},{width:60}];titleRow(s12,"Qué Mirar en el Próximo Balance",3);blank(s12);headRow(s12,["Punto a monitorear","Importancia","Detalle"]);
+  buildNextEarnings(o).forEach(p=>{const st=p.imp==="alta"?"red":p.imp==="media"?"amber":"green";const r=dataRow(s12,[p.t,cap(p.imp),p.d],{zebra:true});r.getCell(1).font={bold:true,size:10,color:{argb:XL.navy}};r.getCell(2).fill={type:"pattern",pattern:"solid",fgColor:{argb:stateFill(st)}};r.getCell(2).font={bold:true,size:9};r.getCell(2).alignment={horizontal:"center"};r.getCell(3).alignment={wrapText:true};});
+  s12.autoFilter="A3:C3";s12.views=[{state:"frozen",ySplit:3}];
+
+  /* 13 — WATCHLIST */
+  const s13=wb.addWorksheet("Watchlist");
+  s13.columns=[{width:10},{width:26},{width:10},{width:22},{width:10},{width:12},{width:10},{width:40},{width:14}];
+  titleRow(s13,"Watchlist de Empresas Analizadas",9);blank(s13);headRow(s13,["Ticker","Empresa","Score","Moat","Calidad","Valuación","Riesgo","Conclusión","Fecha"]);
+  const wl=getWatch();const wlist=wl.length?wl:[{ticker:o.ticker,companyName:o.companyName,total:o.totalScore,moat:o.moat.t,calidad:o.scores.calidad.score,valuacion:o.scores.valuacion.score,riesgo:o.scores.riesgo.score,classif:o.classif.t,date:new Date().toLocaleDateString("es-AR")}];
+  wlist.forEach(w=>{const r=dataRow(s13,[w.ticker,w.companyName,w.total,w.moat,w.calidad,w.valuacion,w.riesgo,w.classif,w.date],{zebra:true});r.getCell(1).font={bold:true,color:{argb:XL.navy}};[3,5,6,7].forEach(i=>{r.getCell(i).alignment={horizontal:"right"};r.getCell(i).fill={type:"pattern",pattern:"solid",fgColor:{argb:stateFill(scoreState(r.getCell(i).value))}};r.getCell(i).font={bold:true,size:9};});r.getCell(8).alignment={wrapText:true};});
+  s13.autoFilter="A3:I3";s13.views=[{state:"frozen",ySplit:3}];
+
+  // Advertencia al pie de cada hoja
+  wb.eachSheet(ws=>{ws.addRow([]);const a=ws.addRow(["Advertencia: "+DISCLAIMER]);a.getCell(1).font={italic:true,size:8,color:{argb:"FF7A849C"}};a.getCell(1).alignment={wrapText:true};ws.mergeCells(a.number,1,a.number,Math.max(2,ws.columnCount));
+    const src=ws.addRow([`Fuente: ${o.source} · Generado: ${new Date().toLocaleString("es-AR")} · Moat Scanner · Descalzi Finanzas`]);src.getCell(1).font={size:8,color:{argb:"FF9AA4BC"}};});
+  return wb;
+}
+function stExcel(v,mid,hi){if(v==null)return"blue";if(v>=hi)return"green";if(v>=mid)return"amber";return"red";}
+function stMultX(v,mid,hi){if(v==null)return"blue";if(v<mid)return"green";if(v<hi)return"amber";return"red";}
+
+async function exportExcel(o){
+  const btn=el("btnExcel");btn.innerHTML='<span class="spinner"></span> Excel…';
+  try{const wb=await buildWorkbook(o);const buf=await wb.xlsx.writeBuffer();downloadBlob(buf,`MoatScanner_${o.ticker}.xlsx`);}
+  catch(e){alert("Error generando Excel: "+e.message);}
+  finally{btn.innerHTML="📊 Descargar Excel";}
+}
+async function exportWatchlistExcel(){
+  const wl=getWatch();if(!wl.length){alert("La watchlist está vacía.");return;}
+  const btn=el("btnWatchExcel");btn.innerHTML='<span class="spinner"></span> Excel…';
+  try{
+    const wb=new ExcelJS.Workbook();const ws=wb.addWorksheet("Watchlist",{views:[{showGridLines:false}]});
+    ws.columns=[{width:10},{width:28},{width:10},{width:24},{width:10},{width:12},{width:10},{width:42},{width:14}];
+    const tr=ws.addRow(["Moat Scanner — Watchlist"]);ws.mergeCells(1,1,1,9);tr.getCell(1).fill={type:"pattern",pattern:"solid",fgColor:{argb:XL.navy}};tr.getCell(1).font={bold:true,size:15,color:{argb:XL.white}};tr.height=30;ws.addRow([]);
+    const hr=ws.addRow(["Ticker","Empresa","Score","Moat","Calidad","Valuación","Riesgo","Conclusión","Fecha"]);hr.eachCell(c=>{c.fill={type:"pattern",pattern:"solid",fgColor:{argb:XL.navy}};c.font={bold:true,color:{argb:XL.white},size:10};c.border=border();});
+    wl.forEach((w,i)=>{const r=ws.addRow([w.ticker,w.companyName,w.total,w.moat,w.calidad,w.valuacion,w.riesgo,w.classif,w.date]);r.eachCell(c=>{c.border=border();if(i%2)c.fill={type:"pattern",pattern:"solid",fgColor:{argb:XL.zebra}};});r.getCell(1).font={bold:true,color:{argb:XL.navy}};[3,5,6,7].forEach(j=>{r.getCell(j).alignment={horizontal:"right"};r.getCell(j).fill={type:"pattern",pattern:"solid",fgColor:{argb:stateFill(scoreState(r.getCell(j).value))}};r.getCell(j).font={bold:true,size:9};});r.getCell(8).alignment={wrapText:true};});
+    ws.autoFilter="A3:I3";ws.views=[{state:"frozen",ySplit:3,showGridLines:false}];
+    ws.addRow([]);const a=ws.addRow(["Advertencia: "+DISCLAIMER]);ws.mergeCells(a.number,1,a.number,9);a.getCell(1).font={italic:true,size:8,color:{argb:"FF7A849C"}};a.getCell(1).alignment={wrapText:true};
+    const buf=await wb.xlsx.writeBuffer();downloadBlob(buf,"MoatScanner_Watchlist.xlsx");
+  }catch(e){alert("Error: "+e.message);}finally{btn.innerHTML="📊 Exportar watchlist a Excel";}
+}
+function downloadBlob(buf,name){const blob=new Blob([buf],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1500);}
+
+/* ---------- INIT ---------- */
+renderDashboard(computeScores(demoCompany()));
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "moat-scanner",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Moat Scanner — análisis fundamental visual con IA · Descalzi Finanzas. Versión producto con backend serverless que oculta la API key.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "vercel dev",
+    "deploy": "vercel --prod"
+  }
+}

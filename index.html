@@ -8,6 +8,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js"></script>
+<script src="https://s3.tradingview.com/tv.js"></script>
 <style>
 :root{
   --bg:#0a0e1a; --bg2:#0f1524; --card:#131a2c; --card2:#1a2338;
@@ -851,6 +852,13 @@ function renderDashboard(o){
     </div>
   </div>
 
+  <!-- TRADINGVIEW CHART -->
+  <div class="section">
+    <div class="section-title"><span class="bar"></span>Gráfico de precio en tiempo real</div>
+    <div class="card" style="padding:8px"><div id="tvChart" style="height:480px;width:100%"></div></div>
+    <p style="font-size:12px;color:var(--muted);margin-top:8px">Gráfico interactivo de TradingView: velas, temporalidades (1m, 1h, D, W) y herramientas. Los datos pueden tener demora según el mercado.</p>
+  </div>
+
   <!-- SCORES + RADAR -->
   <div class="section grid" style="grid-template-columns:1fr 1fr">
     <div class="card">
@@ -989,6 +997,7 @@ function renderDashboard(o){
   renderRadar(o);
   renderMatrix([{o,color:"#3d7dff",label:o.ticker}]);
   renderQuadrant(o);
+  renderTVChart(o);
   wireDashboard(o,thesis);
   dash.scrollIntoView({behavior:"smooth",block:"start"});
 }
@@ -1037,6 +1046,22 @@ function quadrantOf(o){
   if(q&&!v)return{t:"Gran empresa, precio exigente",d:"Alta calidad + valuación exigente.",col:"var(--gold2)"};
   if(!q&&v)return{t:"Posible trampa de valor",d:"Baja calidad + valuación atractiva.",col:"var(--amber)"};
   return{t:"Evitar salvo cambio de fundamentals",d:"Baja calidad + valuación exigente.",col:"#ff8085"};
+}
+function tvSymbol(o){
+  var t=(o.ticker||"").toUpperCase(), ex=(o.exchange||"").toUpperCase(), pre="";
+  if(/NASDAQ/.test(ex)) pre="NASDAQ:";
+  else if(/NYSE|NEW YORK/.test(ex)) pre="NYSE:";
+  else if(/AMEX|AMERICAN/.test(ex)) pre="AMEX:";
+  return pre+t;
+}
+function renderTVChart(o){
+  var c=el("tvChart"); if(!c) return;
+  var demo=!o.ticker || o.ticker==="NOVA" || o.ticker==="LEGACY" || /Demo/i.test(o.source||"");
+  if(demo){ c.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);text-align:center;padding:20px">El gráfico de precio en tiempo real aparece al analizar un ticker real (ej. AAPL, KO, VIST). El modo demo usa una empresa ficticia.</div>'; return; }
+  if(!window.TradingView){ c.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted)">Cargando gráfico…</div>'; setTimeout(function(){renderTVChart(o);},700); return; }
+  c.innerHTML="";
+  try{ new TradingView.widget({container_id:"tvChart",autosize:true,symbol:tvSymbol(o),interval:"D",timezone:"America/Argentina/Buenos_Aires",theme:"dark",style:"1",locale:"es",hide_side_toolbar:false,allow_symbol_change:true,withdateranges:true}); }
+  catch(e){ c.innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:var(--muted);padding:20px">No se pudo cargar el gráfico para este ticker.</div>'; }
 }
 function renderQuadrant(o){
   const q=quadrantOf(o);

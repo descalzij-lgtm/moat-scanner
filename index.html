@@ -323,9 +323,8 @@ function formatPercent(value,alreadyPct=false){
 function fmtBig(value,currency="USD"){
   if(value===null||value===undefined||value===""||isNaN(value)) return "N/D";
   const n=Number(value), a=Math.abs(n);
-  if(a>=1e12) return `${currency} ${(n/1e12).toLocaleString("es-AR",{maximumFractionDigits:1})} B`; // billón es
-  if(a>=1e9)  return `${currency} ${(n/1e9).toLocaleString("es-AR",{maximumFractionDigits:1})} MM`;
-  if(a>=1e6)  return `${currency} ${(n/1e6).toLocaleString("es-AR",{maximumFractionDigits:1})} M`;
+  // Siempre en millones (M), sin decimales, con punto de miles. Ej: USD 402.963 M
+  if(a>=1e6) return `${currency} ${Math.round(n/1e6).toLocaleString("es-AR")} M`;
   return formatCurrency(n,currency);
 }
 
@@ -441,15 +440,28 @@ function normalizeManual(raw){
 }
 
 function finalizeNormalization(o){
-  // FCF fallback
   if(o.freeCashFlow===null && o.operatingCashFlow!==null && o.capex!==null) o.freeCashFlow=o.operatingCashFlow+o.capex;
   if(o.netDebt===null && o.totalDebt!==null && o.cashAndEquivalents!==null) o.netDebt=o.totalDebt-o.cashAndEquivalents;
+  // Fallbacks: si FMP no trae el ratio (por nombre de campo o plan), lo derivamos de los estados disponibles
+  const dv=(a,b)=>(a!==null&&a!==undefined&&b!==null&&b!==undefined&&b!==0)?a/b:null;
+  if(o.netMargin===null) o.netMargin=dv(o.netIncome,o.revenue);
+  if(o.operatingMargin===null) o.operatingMargin=dv(o.ebit,o.revenue);
+  if(o.roe===null) o.roe=dv(o.netIncome,o.totalEquity);
+  if(o.roa===null) o.roa=dv(o.netIncome,o.totalAssets);
+  if(o.debtToEquity===null) o.debtToEquity=dv(o.totalDebt,o.totalEquity);
+  if(o.netDebtToEbitda===null) o.netDebtToEbitda=dv(o.netDebt,o.ebitda);
+  if(o.roic===null && o.ebit!==null && o.totalDebt!==null && o.totalEquity!==null){const inv=o.totalDebt+o.totalEquity-(o.cashAndEquivalents||0);o.roic=inv>0?(o.ebit*0.79)/inv:null;}
+  if(o.peRatio===null) o.peRatio=(o.price!==null&&o.eps)?dv(o.price,o.eps):dv(o.marketCap,o.netIncome);
+  if(o.evToEbitda===null) o.evToEbitda=dv(o.enterpriseValue,o.ebitda);
+  if(o.evToSales===null) o.evToSales=dv(o.enterpriseValue,o.revenue);
+  if(o.priceToSales===null) o.priceToSales=dv(o.marketCap,o.revenue);
+  if(o.fcfYield===null) o.fcfYield=dv(o.freeCashFlow,o.marketCap);
   o.fcfMargin=(o.freeCashFlow!==null && o.revenue)?o.freeCashFlow/o.revenue:null;
   o.cashConversion=(o.freeCashFlow!==null && o.netIncome)?o.freeCashFlow/o.netIncome:null;
-  // lista de datos faltantes clave
   const keyFields={revenue:"Ingresos",netIncome:"Utilidad neta",freeCashFlow:"Free cash flow",roic:"ROIC",
     netDebtToEbitda:"Deuda neta/EBITDA",peRatio:"P/E",grossMargin:"Margen bruto",revenueGrowth:"Crecimiento de ingresos"};
   o.missingData=Object.keys(keyFields).filter(k=>o[k]===null).map(k=>keyFields[k]);
+  o.statementsUnavailable=["income","balance","cash","ratios","metrics","growth"].filter(k=>(o.endpointErrors||[]).includes(k)).length>=4;
   return o;
 }
 
@@ -1057,7 +1069,8 @@ async function runAnalysis(){
   try{
     let o=await fetchFMP(ticker);
     o=computeScores(o);
-    if(o.endpointErrors&&o.endpointErrors.length)showStatus("status",`Análisis listo. Algunos endpoints no respondieron (${esc(o.endpointErrors.join(", "))}); esos datos figuran como N/D.`,"warn");
+    if(o.statementsUnavailable){showStatus("status",`Se obtuvo el perfil de <b>${esc(o.ticker)}</b>, pero tu plan de Financial Modeling Prep no devolvió sus estados financieros (frecuente en empresas no estadounidenses). Los ratios figuran como N/D. Probá con empresas de EE.UU. (ej. MSFT, GOOGL, AAPL) o revisá la cobertura de tu plan.`,"warn");}
+    else if(o.endpointErrors&&o.endpointErrors.length)showStatus("status",`Análisis listo. Algunos endpoints no respondieron (${esc(o.endpointErrors.join(", "))}); esos datos figuran como N/D.`,"warn");
     else hideStatus("status");
     renderDashboard(o);
   }catch(e){

@@ -697,7 +697,8 @@ function buildScenarios(o){
     const terminal=fcfN*s.exitMult;
     const pv=terminal/Math.pow(1+disc,s.years);
     const upside=(pv-o.marketCap)/o.marketCap;
-    return {...s, fcfFuture:fcfN, terminal, pv, upside,
+    const price5=(o.price!==null&&o.price!==undefined&&o.marketCap)?o.price*(terminal/o.marketCap):null;
+    return {...s, fcfFuture:fcfN, terminal, pv, upside, price5,
       interp: upside>=0.25?"Margen de seguridad amplio bajo estos supuestos":upside>=0?"Upside moderado; supuestos deben cumplirse":upside>=-0.2?"Precio actual descuenta buena parte del valor":"Valuación exigente bajo estos supuestos"};
   });
 }
@@ -938,10 +939,10 @@ function renderDashboard(o){
     <div class="section">
       <div class="section-title"><span class="bar"></span>Valuación por escenarios</div>
       <div class="card" style="overflow-x:auto">
-        <table class="tbl"><thead><tr><th>Escenario</th><th>Crecimiento</th><th>Múltiplo salida</th><th>Tasa desc.</th><th>Años</th><th>Valor presente est.</th><th>Upside/Downside</th><th>Interpretación</th></tr></thead><tbody>
-        ${scen.map(s=>`<tr><td><b style="color:${s.col}">${s.name}</b></td><td class="num">${formatPercent(s.growth,true)}</td><td class="num">${formatNumber(s.exitMult)}x</td><td class="num">${formatPercent(s.disc,true)}</td><td class="num">${s.years}</td><td class="num">${fmtBig(s.pv,cur)}</td><td class="num" style="color:${s.upside>=0?"var(--green2)":"#ff8085"}">${s.upside>=0?"+":""}${formatPercent(s.upside,true)}</td><td>${esc(s.interp)}</td></tr>`).join("")}
+        <table class="tbl"><thead><tr><th>Escenario</th><th>Crecimiento</th><th>Múltiplo salida</th><th>Tasa desc.</th><th>Años</th><th>Precio est. 5a</th><th>Valor presente est.</th><th>Upside/Downside</th><th>Interpretación</th></tr></thead><tbody>
+        ${scen.map(s=>`<tr><td><b style="color:${s.col}">${s.name}</b></td><td class="num">${formatPercent(s.growth,true)}</td><td class="num">${formatNumber(s.exitMult)}x</td><td class="num">${formatPercent(s.disc,true)}</td><td class="num">${s.years}</td><td class="num">${s.price5!=null?formatCurrency(s.price5,cur):"N/D"}</td><td class="num">${fmtBig(s.pv,cur)}</td><td class="num" style="color:${s.upside>=0?"var(--green2)":"#ff8085"}">${s.upside>=0?"+":""}${formatPercent(s.upside,true)}</td><td>${esc(s.interp)}</td></tr>`).join("")}
         </tbody></table>
-        <p style="font-size:12px;color:var(--muted);margin-top:10px">Modelo simplificado FCF × múltiplo de salida descontado a valor presente. Supuestos ilustrativos, no un precio objetivo.</p>
+        <p style="font-size:12px;color:var(--muted);margin-top:10px">Modelo simplificado FCF × múltiplo de salida a 5 años. El precio estimado surge de ese valor futuro sobre el market cap actual y supone la misma cantidad de acciones; el valor presente lo trae a hoy con la tasa de descuento. Supuestos ilustrativos, no un precio objetivo.</p>
       </div>
     </div>`;
   } else {
@@ -1396,8 +1397,8 @@ function exportPDF(o){
     buildRedFlags(o).forEach((f,i)=>{const col=f.sev==="ok"?[221,245,234]:f.sev==="baja"||f.sev==="media"?[253,243,224]:[251,228,229];tableRow([f.name,f.sev==="ok"?"Sin alerta":f.sev.toUpperCase(),f.expl.slice(0,70)],[150,70,W-2*M-220],{fill:col});});
     // SCENARIOS
     const scen=buildScenarios(o);if(scen){h1("Valuación por escenarios");
-      tableRow(["Escenario","Crec.","Múlt.","Tasa","VP est.","Upside","Interpretación"],[70,44,40,40,90,54,W-2*M-338],{head:true,fill:NAVY,align:["left","right","right","right","right","right","left"]});
-      scen.forEach((s,i)=>tableRow([s.name,formatPercent(s.growth,true),formatNumber(s.exitMult)+"x",formatPercent(s.disc,true),fmtBig(s.pv,cur),(s.upside>=0?"+":"")+formatPercent(s.upside,true),s.interp.slice(0,42)],[70,44,40,40,90,54,W-2*M-338],{fill:i%2?[240,243,248]:[255,255,255],align:["left","right","right","right","right","right","left"]}));}
+      tableRow(["Escenario","Crec.","Múlt.","Tasa","Precio 5a","VP est.","Upside","Interpretación"],[70,44,40,40,62,90,54,W-2*M-400],{head:true,fill:NAVY,align:["left","right","right","right","right","right","right","left"]});
+      scen.forEach((s,i)=>tableRow([s.name,formatPercent(s.growth,true),formatNumber(s.exitMult)+"x",formatPercent(s.disc,true),(s.price5!=null?formatCurrency(s.price5,cur):"N/D"),fmtBig(s.pv,cur),(s.upside>=0?"+":"")+formatPercent(s.upside,true),s.interp.slice(0,36)],[70,44,40,40,62,90,54,W-2*M-400],{fill:i%2?[240,243,248]:[255,255,255],align:["left","right","right","right","right","right","right","left"]}));}
     // COMMITTEE
     h1("Investment Committee");
     buildCommittee(o).forEach(c=>{ensure(20);doc.setFontSize(10);doc.setFont(undefined,"bold");doc.setTextColor(...NAVY);doc.text(`${c.name} — ${c.role}`,M+2,y+10);y+=13;doc.setFont(undefined,"normal");para(`Veredicto: ${c.verdict}. A favor: ${c.pro}. En contra: ${c.con}. Pregunta clave: ${c.qk}`,8.5);});
@@ -1527,12 +1528,12 @@ async function buildWorkbook(o){
 
   /* 9 — VALUACIÓN POR ESCENARIOS */
   const s9=wb.addWorksheet("Valuación por Escenarios");
-  s9.columns=[{width:16},{width:14},{width:12},{width:12},{width:10},{width:22},{width:14},{width:40}];titleRow(s9,"Valuación por Escenarios",8);blank(s9);
-  headRow(s9,["Escenario","Crecimiento","Múlt. salida","Tasa desc.","Años","Valor presente est.","Upside/Down","Interpretación"]);
+  s9.columns=[{width:16},{width:14},{width:12},{width:12},{width:10},{width:18},{width:22},{width:14},{width:40}];titleRow(s9,"Valuación por Escenarios",9);blank(s9);
+  headRow(s9,["Escenario","Crecimiento","Múlt. salida","Tasa desc.","Años","Precio est. 5a","Valor presente est.","Upside/Down","Interpretación"]);
   const scen=buildScenarios(o);
-  if(scen){scen.forEach(s=>{const r=dataRow(s9,[s.name,s.growth/100,s.exitMult,s.disc/100,s.years,s.pv,s.upside,s.interp],{zebra:true});
-    r.getCell(1).font={bold:true,color:{argb:XL.navy}};r.getCell(2).numFmt="0%";r.getCell(3).numFmt='#,##0"x"';r.getCell(4).numFmt="0%";r.getCell(6).numFmt=CURFMT;r.getCell(7).numFmt="+0%;-0%";
-    [2,3,4,5,6,7].forEach(i=>r.getCell(i).alignment={horizontal:"right"});r.getCell(7).fill={type:"pattern",pattern:"solid",fgColor:{argb:s.upside>=0.1?XL.green:s.upside>=-0.1?XL.amber:XL.red}};r.getCell(7).font={bold:true};r.getCell(8).alignment={wrapText:true};});
+  if(scen){scen.forEach(s=>{const r=dataRow(s9,[s.name,s.growth/100,s.exitMult,s.disc/100,s.years,s.price5,s.pv,s.upside,s.interp],{zebra:true});
+    r.getCell(1).font={bold:true,color:{argb:XL.navy}};r.getCell(2).numFmt="0%";r.getCell(3).numFmt='#,##0"x"';r.getCell(4).numFmt="0%";r.getCell(6).numFmt=CURFMT;r.getCell(7).numFmt=CURFMT;r.getCell(8).numFmt="+0%;-0%";
+    [2,3,4,5,6,7,8].forEach(i=>r.getCell(i).alignment={horizontal:"right"});r.getCell(8).fill={type:"pattern",pattern:"solid",fgColor:{argb:s.upside>=0.1?XL.green:s.upside>=-0.1?XL.amber:XL.red}};r.getCell(8).font={bold:true};r.getCell(9).alignment={wrapText:true};});
   }else{dataRow(s9,["N/D — sin FCF positivo o market cap para modelar escenarios (requiere revisión)."]);}
   s9.views=[{state:"frozen",ySplit:3}];
 

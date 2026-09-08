@@ -684,14 +684,29 @@ function buildCommittee(o){
 
 /* ---------- VALUACIÓN POR ESCENARIOS ---------- */
 function buildScenarios(o){
-  if(o.freeCashFlow===null || o.freeCashFlow<=0 || !o.marketCap) return null;
+  if(!o.marketCap) return null;
+  // FCF normalizado: si el ultimo ejercicio se aparta mas de 35% de la mediana de los años
+  // disponibles, se proyecta sobre la mediana. Evita que un pago extraordinario de un año
+  // puntual (litigios, impuestos diferidos) distorsione toda la valuacion.
+  const fcfLast=o.freeCashFlow;
+  const fcfMed=(o.freeCashFlowMedian!==null&&o.freeCashFlowMedian!==undefined&&o.freeCashFlowMedian>0)?o.freeCashFlowMedian:null;
+  const fcfAdj=(fcfMed!==null&&fcfLast!==null&&fcfLast!==0&&Math.abs(fcfLast/fcfMed-1)>0.35);
+  const fcfBase=fcfAdj?fcfMed:fcfLast;
+  if(fcfBase===null||fcfBase<=0) return null;
   const base=asPct(o.revenueCAGR5!==null?o.revenueCAGR5:o.revenueGrowth)||6;
   // Multiplo de salida anclado a la propia empresa: punto medio entre el multiplo que el
   // mercado le paga hoy a su FCF (acotado a 8x-40x para evitar extremos) y un multiplo de
   // mercado normal de 18x. Asi una empresa de calidad no se valua con la misma vara que una ciclica.
-  const curMult=o.marketCap/o.freeCashFlow;
+  const curMult=o.marketCap/fcfBase;
+  // Dividendos: se cobran ademas de la suba del precio. Se toman al nivel actual, sin crecer (conservador).
+  const divYield=(o.dividendYield!==null&&o.dividendYield!==undefined&&isFinite(o.dividendYield))?Math.max(0,Math.min(0.15,o.dividendYield)):0;
   const anchor=(Math.min(Math.max(curMult,8),40)+18)/2;
   const r1=x=>Math.round(x*10)/10;
+  // Crecimiento decreciente (fade): ninguna empresa sostiene su crecimiento historico para
+  // siempre. Se arranca en el crecimiento observado, con techo de 35%, y se converge linealmente
+  // hasta un 3% terminal (crecimiento nominal de largo plazo de la economia) en el ultimo año.
+  const G_TERM=0.03, G_CAP=0.35;
+  const fadeFactor=(g0,n)=>{let f=1;const g=Math.min(g0,G_CAP);for(let i=0;i<n;i++){const gt=n>1?g+(G_TERM-g)*i/(n-1):g;f*=(1+gt);}return f;};
   // Recompra / dilucion: variacion anualizada de acciones, acotada a +-4% por año
   const shsRate=(o.sharesCAGR!==null&&o.sharesCAGR!==undefined&&isFinite(o.sharesCAGR))?Math.max(-0.04,Math.min(0.04,o.sharesCAGR)):0;
   const scen=[
@@ -701,15 +716,21 @@ function buildScenarios(o){
   ];
   return scen.map(s=>{
     const growth=s.growth/100, disc=s.disc/100;
-    const fcfN=o.freeCashFlow*Math.pow(1+growth,s.years);
+    const factor=fadeFactor(growth,s.years);
+    const growthEff=Math.pow(factor,1/s.years)-1;   // CAGR promedio del periodo, ya con el fade
+    const fcfN=fcfBase*factor;
     const terminal=fcfN*s.exitMult;
     const pv=terminal/Math.pow(1+disc,s.years);
     // Factor de acciones: <1 si la empresa recompra, >1 si diluye
     const shareFactor=Math.pow(1+shsRate,s.years);
     const price5=(o.price!==null&&o.price!==undefined&&o.marketCap)?o.price*(terminal/o.marketCap)/shareFactor:null;
-    // Upside por accion: valor presente por accion contra el precio de hoy
-    const upside=(pv/o.marketCap)/shareFactor-1;
-    return {...s, fcfFuture:fcfN, terminal, pv, upside, price5, curMult, shsRate,
+    // Retorno total por accion: valor presente del precio futuro MAS los dividendos
+    // cobrados en el camino, todo descontado, contra el precio de hoy.
+    const pvPrice=(pv/o.marketCap)/shareFactor;                       // como fraccion del precio actual
+    let pvDivF=0; for(let k=1;k<=s.years;k++) pvDivF+=divYield/Math.pow(1+disc,k);
+    const divTotal=(o.price!==null&&o.price!==undefined)?o.price*divYield*s.years:null;
+    const upside=pvPrice+pvDivF-1;
+    return {...s, fcfFuture:fcfN, terminal, pv, upside, price5, curMult, shsRate, growthEff, fcfAdj, fcfBase, fcfLast, fcfMed, divYield, divTotal, growthStart:Math.min(growth,G_CAP)*100, growthTerm:G_TERM*100,
       interp: upside>=0.25?"Margen de seguridad amplio bajo estos supuestos":upside>=0?"Upside moderado; supuestos deben cumplirse":upside>=-0.2?"Precio actual descuenta buena parte del valor":"Valuación exigente bajo estos supuestos"};
   });
 }
@@ -949,11 +970,12 @@ function renderDashboard(o){
     html+=`
     <div class="section">
       <div class="section-title"><span class="bar"></span>Valuación por escenarios</div>
+      ${scen[0].fcfAdj?`<div class="status warn show">Flujo de caja del último ejercicio atípico (${fmtBig(scen[0].fcfLast,cur)} contra una mediana de ${fmtBig(scen[0].fcfMed,cur)}). Para proyectar se usa la mediana de los últimos años, no el último dato.</div>`:""}
       <div class="card" style="overflow-x:auto">
-        <table class="tbl"><thead><tr><th>Escenario</th><th>Crecimiento</th><th>Múltiplo salida</th><th>Tasa desc.</th><th>Años</th><th>Precio est. 5a</th><th>Valor presente (empresa)</th><th>Upside/Downside</th><th>Interpretación</th></tr></thead><tbody>
-        ${scen.map(s=>`<tr><td><b style="color:${s.col}">${s.name}</b></td><td class="num">${formatPercent(s.growth,true)}</td><td class="num">${formatNumber(s.exitMult)}x</td><td class="num">${formatPercent(s.disc,true)}</td><td class="num">${s.years}</td><td class="num">${s.price5!=null?formatCurrency(s.price5,cur):"N/D"}</td><td class="num">${fmtBig(s.pv,cur)}</td><td class="num" style="color:${s.upside>=0?"var(--green2)":"#ff8085"}">${s.upside>=0?"+":""}${formatPercent(s.upside,true)}</td><td>${esc(s.interp)}</td></tr>`).join("")}
+        <table class="tbl"><thead><tr><th>Escenario</th><th>Crecimiento (año 1 → 5)</th><th>Múltiplo salida</th><th>Tasa desc.</th><th>Años</th><th>Precio est. 5a</th><th>Valor presente (empresa)</th><th>Upside/Downside</th><th>Interpretación</th></tr></thead><tbody>
+        ${scen.map(s=>`<tr><td><b style="color:${s.col}">${s.name}</b></td><td class="num">${formatPercent(s.growthStart,true)} → ${formatPercent(s.growthTerm,true)}</td><td class="num">${formatNumber(s.exitMult)}x</td><td class="num">${formatPercent(s.disc,true)}</td><td class="num">${s.years}</td><td class="num">${s.price5!=null?formatCurrency(s.price5,cur):"N/D"}</td><td class="num">${fmtBig(s.pv,cur)}</td><td class="num" style="color:${s.upside>=0?"var(--green2)":"#ff8085"}">${s.upside>=0?"+":""}${formatPercent(s.upside,true)}</td><td>${esc(s.interp)}</td></tr>`).join("")}
         </tbody></table>
-        <p style="font-size:12px;color:var(--muted);margin-top:10px">Modelo simplificado: FCF proyectado a 5 años × múltiplo de salida. El múltiplo no es fijo: se ancla a esta empresa, tomando el punto medio entre lo que el mercado le paga hoy (<b>${scen[0].curMult!=null?formatNumber(scen[0].curMult)+"x FCF":"N/D"}</b>, acotado a 8x-40x) y un múltiplo de mercado normal de 18x. El precio por acción incorpora la variación de acciones en circulación de los últimos años (<b>${scen[0].shsRate?formatPercent(scen[0].shsRate*100,true)+" por año — "+(scen[0].shsRate<0?"recompra":"dilución"):"sin datos de recompra"}</b>), proyectada a 5 años. El upside compara el valor presente por acción contra el precio de hoy. Supuestos ilustrativos, no un precio objetivo.</p>
+        <p style="font-size:12px;color:var(--muted);margin-top:10px">Modelo simplificado: FCF proyectado a 5 años × múltiplo de salida. El crecimiento no se mantiene constante: arranca en el histórico (con techo de 35%) y decae linealmente hasta 3% anual en el año 5, que es el crecimiento nominal de largo plazo de la economía. El múltiplo no es fijo: se ancla a esta empresa, tomando el punto medio entre lo que el mercado le paga hoy (<b>${scen[0].curMult!=null?formatNumber(scen[0].curMult)+"x FCF":"N/D"}</b>, acotado a 8x-40x) y un múltiplo de mercado normal de 18x. El precio por acción incorpora la variación de acciones en circulación de los últimos años (<b>${scen[0].shsRate?formatPercent(scen[0].shsRate*100,true)+" por año — "+(scen[0].shsRate<0?"recompra":"dilución"):"sin datos de recompra"}</b>), proyectada a 5 años. El upside es el <b>retorno total</b>: compara el valor presente del precio futuro más los dividendos cobrados en el camino (${scen[0].divYield?formatPercent(scen[0].divYield*100,true)+' anual, unos '+fmtBig(scen[0].divTotal,cur)+' por acción en 5 años':'esta empresa no paga dividendos'}) contra el precio de hoy. Supuestos ilustrativos, no un precio objetivo.</p>
       </div>
     </div>`;
   } else {
@@ -1409,7 +1431,7 @@ function exportPDF(o){
     // SCENARIOS
     const scen=buildScenarios(o);if(scen){h1("Valuación por escenarios");
       tableRow(["Escenario","Crec.","Múlt.","Tasa","Precio 5a","VP est.","Upside","Interpretación"],[70,44,40,40,62,90,54,W-2*M-400],{head:true,fill:NAVY,align:["left","right","right","right","right","right","right","left"]});
-      scen.forEach((s,i)=>tableRow([s.name,formatPercent(s.growth,true),formatNumber(s.exitMult)+"x",formatPercent(s.disc,true),(s.price5!=null?formatCurrency(s.price5,cur):"N/D"),fmtBig(s.pv,cur),(s.upside>=0?"+":"")+formatPercent(s.upside,true),s.interp.slice(0,36)],[70,44,40,40,62,90,54,W-2*M-400],{fill:i%2?[240,243,248]:[255,255,255],align:["left","right","right","right","right","right","right","left"]}));}
+      scen.forEach((s,i)=>tableRow([s.name,formatPercent(s.growthEff*100,true),formatNumber(s.exitMult)+"x",formatPercent(s.disc,true),(s.price5!=null?formatCurrency(s.price5,cur):"N/D"),fmtBig(s.pv,cur),(s.upside>=0?"+":"")+formatPercent(s.upside,true),s.interp.slice(0,36)],[70,44,40,40,62,90,54,W-2*M-400],{fill:i%2?[240,243,248]:[255,255,255],align:["left","right","right","right","right","right","right","left"]}));}
     // COMMITTEE
     h1("Investment Committee");
     buildCommittee(o).forEach(c=>{ensure(20);doc.setFontSize(10);doc.setFont(undefined,"bold");doc.setTextColor(...NAVY);doc.text(`${c.name} — ${c.role}`,M+2,y+10);y+=13;doc.setFont(undefined,"normal");para(`Veredicto: ${c.verdict}. A favor: ${c.pro}. En contra: ${c.con}. Pregunta clave: ${c.qk}`,8.5);});
@@ -1540,9 +1562,9 @@ async function buildWorkbook(o){
   /* 9 — VALUACIÓN POR ESCENARIOS */
   const s9=wb.addWorksheet("Valuación por Escenarios");
   s9.columns=[{width:16},{width:14},{width:12},{width:12},{width:10},{width:18},{width:22},{width:14},{width:40}];titleRow(s9,"Valuación por Escenarios",9);blank(s9);
-  headRow(s9,["Escenario","Crecimiento","Múlt. salida","Tasa desc.","Años","Precio est. 5a","Valor presente est.","Upside/Down","Interpretación"]);
+  headRow(s9,["Escenario","Crecimiento medio","Múlt. salida","Tasa desc.","Años","Precio est. 5a","Valor presente est.","Upside/Down","Interpretación"]);
   const scen=buildScenarios(o);
-  if(scen){scen.forEach(s=>{const r=dataRow(s9,[s.name,s.growth/100,s.exitMult,s.disc/100,s.years,s.price5,s.pv,s.upside,s.interp],{zebra:true});
+  if(scen){scen.forEach(s=>{const r=dataRow(s9,[s.name,s.growthEff,s.exitMult,s.disc/100,s.years,s.price5,s.pv,s.upside,s.interp],{zebra:true});
     r.getCell(1).font={bold:true,color:{argb:XL.navy}};r.getCell(2).numFmt="0%";r.getCell(3).numFmt='#,##0"x"';r.getCell(4).numFmt="0%";r.getCell(6).numFmt=CURFMT;r.getCell(7).numFmt=CURFMT;r.getCell(8).numFmt="+0%;-0%";
     [2,3,4,5,6,7,8].forEach(i=>r.getCell(i).alignment={horizontal:"right"});r.getCell(8).fill={type:"pattern",pattern:"solid",fgColor:{argb:s.upside>=0.1?XL.green:s.upside>=-0.1?XL.amber:XL.red}};r.getCell(8).font={bold:true};r.getCell(9).alignment={wrapText:true};});
   }else{dataRow(s9,["N/D — sin FCF positivo o market cap para modelar escenarios (requiere revisión)."]);}

@@ -686,19 +686,30 @@ function buildCommittee(o){
 function buildScenarios(o){
   if(o.freeCashFlow===null || o.freeCashFlow<=0 || !o.marketCap) return null;
   const base=asPct(o.revenueCAGR5!==null?o.revenueCAGR5:o.revenueGrowth)||6;
+  // Multiplo de salida anclado a la propia empresa: punto medio entre el multiplo que el
+  // mercado le paga hoy a su FCF (acotado a 8x-40x para evitar extremos) y un multiplo de
+  // mercado normal de 18x. Asi una empresa de calidad no se valua con la misma vara que una ciclica.
+  const curMult=o.marketCap/o.freeCashFlow;
+  const anchor=(Math.min(Math.max(curMult,8),40)+18)/2;
+  const r1=x=>Math.round(x*10)/10;
+  // Recompra / dilucion: variacion anualizada de acciones, acotada a +-4% por año
+  const shsRate=(o.sharesCAGR!==null&&o.sharesCAGR!==undefined&&isFinite(o.sharesCAGR))?Math.max(-0.04,Math.min(0.04,o.sharesCAGR)):0;
   const scen=[
-    {name:"Conservador",growth:Math.max(2,base*0.5),exitMult:14,disc:12,years:5,col:"var(--amber)"},
-    {name:"Base",growth:Math.max(4,base),exitMult:18,disc:10,years:5,col:"var(--blue2)"},
-    {name:"Optimista",growth:base*1.4+2,exitMult:24,disc:9,years:5,col:"var(--green2)"}
+    {name:"Conservador",growth:Math.max(2,base*0.5),exitMult:r1(anchor*0.7),disc:12,years:5,col:"var(--amber)"},
+    {name:"Base",growth:Math.max(4,base),exitMult:r1(anchor),disc:10,years:5,col:"var(--blue2)"},
+    {name:"Optimista",growth:base*1.4+2,exitMult:r1(anchor*1.25),disc:9,years:5,col:"var(--green2)"}
   ];
   return scen.map(s=>{
     const growth=s.growth/100, disc=s.disc/100;
     const fcfN=o.freeCashFlow*Math.pow(1+growth,s.years);
     const terminal=fcfN*s.exitMult;
     const pv=terminal/Math.pow(1+disc,s.years);
-    const upside=(pv-o.marketCap)/o.marketCap;
-    const price5=(o.price!==null&&o.price!==undefined&&o.marketCap)?o.price*(terminal/o.marketCap):null;
-    return {...s, fcfFuture:fcfN, terminal, pv, upside, price5,
+    // Factor de acciones: <1 si la empresa recompra, >1 si diluye
+    const shareFactor=Math.pow(1+shsRate,s.years);
+    const price5=(o.price!==null&&o.price!==undefined&&o.marketCap)?o.price*(terminal/o.marketCap)/shareFactor:null;
+    // Upside por accion: valor presente por accion contra el precio de hoy
+    const upside=(pv/o.marketCap)/shareFactor-1;
+    return {...s, fcfFuture:fcfN, terminal, pv, upside, price5, curMult, shsRate,
       interp: upside>=0.25?"Margen de seguridad amplio bajo estos supuestos":upside>=0?"Upside moderado; supuestos deben cumplirse":upside>=-0.2?"Precio actual descuenta buena parte del valor":"Valuación exigente bajo estos supuestos"};
   });
 }
@@ -939,10 +950,10 @@ function renderDashboard(o){
     <div class="section">
       <div class="section-title"><span class="bar"></span>Valuación por escenarios</div>
       <div class="card" style="overflow-x:auto">
-        <table class="tbl"><thead><tr><th>Escenario</th><th>Crecimiento</th><th>Múltiplo salida</th><th>Tasa desc.</th><th>Años</th><th>Precio est. 5a</th><th>Valor presente est.</th><th>Upside/Downside</th><th>Interpretación</th></tr></thead><tbody>
+        <table class="tbl"><thead><tr><th>Escenario</th><th>Crecimiento</th><th>Múltiplo salida</th><th>Tasa desc.</th><th>Años</th><th>Precio est. 5a</th><th>Valor presente (empresa)</th><th>Upside/Downside</th><th>Interpretación</th></tr></thead><tbody>
         ${scen.map(s=>`<tr><td><b style="color:${s.col}">${s.name}</b></td><td class="num">${formatPercent(s.growth,true)}</td><td class="num">${formatNumber(s.exitMult)}x</td><td class="num">${formatPercent(s.disc,true)}</td><td class="num">${s.years}</td><td class="num">${s.price5!=null?formatCurrency(s.price5,cur):"N/D"}</td><td class="num">${fmtBig(s.pv,cur)}</td><td class="num" style="color:${s.upside>=0?"var(--green2)":"#ff8085"}">${s.upside>=0?"+":""}${formatPercent(s.upside,true)}</td><td>${esc(s.interp)}</td></tr>`).join("")}
         </tbody></table>
-        <p style="font-size:12px;color:var(--muted);margin-top:10px">Modelo simplificado FCF × múltiplo de salida a 5 años. El precio estimado surge de ese valor futuro sobre el market cap actual y supone la misma cantidad de acciones; el valor presente lo trae a hoy con la tasa de descuento. Supuestos ilustrativos, no un precio objetivo.</p>
+        <p style="font-size:12px;color:var(--muted);margin-top:10px">Modelo simplificado: FCF proyectado a 5 años × múltiplo de salida. El múltiplo no es fijo: se ancla a esta empresa, tomando el punto medio entre lo que el mercado le paga hoy (<b>${scen[0].curMult!=null?formatNumber(scen[0].curMult)+"x FCF":"N/D"}</b>, acotado a 8x-40x) y un múltiplo de mercado normal de 18x. El precio por acción incorpora la variación de acciones en circulación de los últimos años (<b>${scen[0].shsRate?formatPercent(scen[0].shsRate*100,true)+" por año — "+(scen[0].shsRate<0?"recompra":"dilución"):"sin datos de recompra"}</b>), proyectada a 5 años. El upside compara el valor presente por acción contra el precio de hoy. Supuestos ilustrativos, no un precio objetivo.</p>
       </div>
     </div>`;
   } else {

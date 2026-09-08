@@ -61,15 +61,6 @@ function normalizeFMP(ticker, d, errors) {
         rt = pick(d.ratios), km = pick(d.metrics), gr = pick(d.growth);
   const incSeries = d.income || [];
 
-  // Recompra / dilucion: variacion anualizada de las acciones en circulacion
-  let shsCagr = null, shsLatest = null;
-  const shsSeries = incSeries.map((x) => num(x.weightedAverageShsOut)).filter((v) => v !== null && v > 0);
-  if (shsSeries.length >= 1) shsLatest = shsSeries[0];
-  if (shsSeries.length >= 2) {
-    const nw = shsSeries[0], od = shsSeries[shsSeries.length - 1], ys = shsSeries.length - 1;
-    if (nw > 0 && od > 0 && ys > 0) shsCagr = Math.pow(nw / od, 1 / ys) - 1;
-  }
-
   let cagr = null;
   if (incSeries.length >= 2) {
     const newest = num(incSeries[0].revenue),
@@ -103,7 +94,6 @@ function normalizeFMP(ticker, d, errors) {
     high52: num(p.range ? String(p.range).split("-").pop().trim() : null),
     low52: num(p.range ? String(p.range).split("-")[0].trim() : null),
     change1y: null, avgVolume: num(p.averageVolume || p.volAvg),
-    sharesOutstanding: shsLatest, sharesCAGR: shsCagr,
     endpointErrors: errors || []
   };
   return finalizeNormalization(o);
